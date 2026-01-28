@@ -56,44 +56,44 @@ export default function AddPatientModal({ isOpen, onClose, onAdd, initialData, t
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden mt-auto sm:mt-0 max-h-[90vh] overflow-y-auto"
+                        className="relative w-full max-w-lg bg-[var(--surface)] border border-[var(--surface-variant)] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden mt-auto sm:mt-0 max-h-[90vh] overflow-y-auto"
                     >
-                        <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
+                        <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center bg-[var(--surface-variant)]/50">
+                            <h2 className="text-xl font-bold flex items-center gap-2 text-[var(--text-primary)]">
                                 <User className="text-[var(--primary)]" size={20} />
                                 {title || (initialData ? "עריכת פרטי מטופל" : "מטופל חדש")}
                             </h2>
-                            <button onClick={onClose} className="p-2 hover:bg-[var(--surface-variant)] rounded-full transition-colors">
+                            <button onClick={onClose} className="p-2 hover:bg-[var(--surface-variant)] rounded-full transition-colors text-[var(--text-secondary)]">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-[var(--surface)]">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-sm font-medium text-[var(--secondary)]">שם פרטי</label>
+                                    <label className="text-sm font-medium text-[var(--text-secondary)]">שם פרטי</label>
                                     <input
                                         required
                                         type="text"
                                         value={formData.first_name}
                                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                                        className="w-full bg-[var(--surface)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
+                                        className="w-full bg-[var(--background)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-medium text-[var(--secondary)]">שם משפחה</label>
+                                    <label className="text-sm font-medium text-[var(--text-secondary)]">שם משפחה</label>
                                     <input
                                         required
                                         type="text"
                                         value={formData.last_name}
                                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                                        className="w-full bg-[var(--surface)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
+                                        className="w-full bg-[var(--background)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-sm font-medium text-[var(--secondary)] flex items-center gap-2">
+                                <label className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-2">
                                     <Calendar size={16} />
                                     תאריך לידה
                                 </label>
@@ -101,12 +101,12 @@ export default function AddPatientModal({ isOpen, onClose, onAdd, initialData, t
                                     type="date"
                                     value={formData.birth_date}
                                     onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                                    className="w-full bg-[var(--surface)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
+                                    className="w-full bg-[var(--background)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-sm font-medium text-[var(--secondary)] flex items-center gap-2">
+                                <label className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-2">
                                     <FileText size={16} />
                                     הערות כלליות
                                 </label>
@@ -114,7 +114,7 @@ export default function AddPatientModal({ isOpen, onClose, onAdd, initialData, t
                                     rows={4}
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                    className="w-full bg-[var(--surface)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
+                                    className="w-full bg-[var(--background)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-xl p-3 focus:ring-2 focus:ring-[var(--primary)] outline-none"
                                     placeholder="לדוגמה: רקע טיפולי, חומרים מועדפים..."
                                 />
                             </div>

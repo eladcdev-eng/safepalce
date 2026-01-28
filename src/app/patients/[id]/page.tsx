@@ -210,7 +210,7 @@ export default function PatientDetail() {
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 onClick={() => setSelectedSession(session)}
-                                className="bg-white border border-[var(--surface-variant)] p-4 rounded-2xl flex items-center justify-between hover:border-[var(--primary)]/50 transition-all cursor-pointer active:bg-gray-50 group hover:shadow-md"
+                                className="bg-[var(--surface)] border border-[var(--surface-variant)] p-4 rounded-2xl flex items-center justify-between hover:border-[var(--primary)]/50 transition-all cursor-pointer active:bg-[var(--surface-variant)] group hover:shadow-md"
                             >
                                 <div className="flex items-center gap-3 md:gap-4 overflow-hidden flex-1">
                                     <div className="w-10 h-10 md:w-11 md:h-11 bg-[var(--surface-variant)]/50 rounded-xl flex items-center justify-center text-[var(--primary)] flex-shrink-0">
@@ -261,15 +261,15 @@ export default function PatientDetail() {
                                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                    className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                                    className="relative bg-[var(--surface)] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-[var(--surface-variant)]"
                                 >
-                                    <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center bg-[var(--primary-container)]/10">
+                                    <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center bg-[var(--primary-container)]">
                                         <div className="flex-1">
                                             <h3 className="text-xl font-bold text-[var(--primary)] flex items-center gap-2">
                                                 <FileText size={20} />
                                                 סיכום מפגש טיפולי
                                             </h3>
-                                            <p className="text-sm text-[var(--secondary)]">
+                                            <p className="text-sm text-[var(--text-secondary)]">
                                                 {new Date(selectedSession.session_date).toLocaleDateString('he-IL')} | {new Date(selectedSession.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
@@ -279,7 +279,7 @@ export default function PatientDetail() {
                                                     const text = selectedSession.summaries?.[0]?.summary_text || "";
                                                     handleCopySummary(text);
                                                 }}
-                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${isCopying ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-slate-200 text-slate-500 hover:text-[var(--primary)] hover:border-[var(--primary)]'}`}
+                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${isCopying ? 'bg-green-500/10 border-green-500 text-green-600' : 'bg-[var(--surface)] border-[var(--surface-variant)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]'}`}
                                             >
                                                 {isCopying ? <Check size={18} /> : <Copy size={18} />}
                                             </button>
@@ -290,13 +290,13 @@ export default function PatientDetail() {
                                                     }
                                                     setIsEditingSummary(!isEditingSummary);
                                                 }}
-                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${isEditingSummary ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white border-slate-200 text-slate-500 hover:text-[var(--primary)] hover:border-[var(--primary)]'}`}
+                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${isEditingSummary ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-[var(--surface)] border-[var(--surface-variant)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]'}`}
                                             >
                                                 <Edit3 size={18} />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteSession(selectedSession.id)}
-                                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-red-500 hover:bg-red-50 transition-all"
+                                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface)] border border-[var(--surface-variant)] text-red-500 hover:bg-red-500/10 transition-all"
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -305,31 +305,31 @@ export default function PatientDetail() {
                                                     setSelectedSession(null);
                                                     setIsEditingSummary(false);
                                                 }}
-                                                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white transition-colors text-slate-400"
+                                                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[var(--surface-variant)] transition-colors text-[var(--text-secondary)]"
                                             >
                                                 <X size={20} />
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-slate-50/30">
+                                    <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-[var(--background)]">
                                         {isEditingSummary ? (
                                             <textarea
                                                 value={editedSummaryText}
                                                 onChange={(e) => setEditedSummaryText(e.target.value)}
-                                                className="w-full h-full min-h-[400px] bg-white rounded-2xl p-6 border-2 border-[var(--primary-container)] focus:border-[var(--primary)] focus:outline-none text-base md:text-lg leading-relaxed shadow-inner"
+                                                className="w-full h-full min-h-[400px] bg-[var(--surface)] text-[var(--text-primary)] rounded-2xl p-6 border-2 border-[var(--primary-container)] focus:border-[var(--primary)] focus:outline-none text-base md:text-lg leading-relaxed shadow-inner"
                                                 dir="rtl"
                                                 autoFocus
                                             />
                                         ) : (
-                                            <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm min-h-[200px]">
-                                                <div className="whitespace-pre-wrap text-base md:text-lg leading-relaxed text-[var(--foreground)] font-medium">
+                                            <div className="bg-[var(--surface)] rounded-3xl p-6 md:p-8 border border-[var(--surface-variant)] shadow-sm min-h-[200px]">
+                                                <div className="whitespace-pre-wrap text-base md:text-lg leading-relaxed text-[var(--text-primary)] font-medium">
                                                     {selectedSession.summaries?.[0]?.summary_text || "אין סיכום זמין למפגש זה."}
                                                 </div>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-6 border-t border-[var(--surface-variant)] flex justify-between items-center bg-white">
-                                        <div className="text-xs text-[var(--outline)]">
+                                    <div className="p-6 border-t border-[var(--surface-variant)] flex justify-between items-center bg-[var(--surface)]">
+                                        <div className="text-xs text-[var(--text-secondary)]">
                                             {isEditingSummary ? "* השינויים יישמרו רק לאחר לחיצה על כפתור השמירה" : ""}
                                         </div>
                                         <div className="flex gap-3">
@@ -337,7 +337,7 @@ export default function PatientDetail() {
                                                 <>
                                                     <button
                                                         onClick={() => setIsEditingSummary(false)}
-                                                        className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all"
+                                                        className="px-6 py-2.5 rounded-xl border border-[var(--surface-variant)] text-[var(--text-secondary)] font-bold hover:bg-[var(--surface-variant)] transition-all"
                                                     >
                                                         ביטול
                                                     </button>
@@ -352,7 +352,7 @@ export default function PatientDetail() {
                                             ) : (
                                                 <button
                                                     onClick={() => setSelectedSession(null)}
-                                                    className="px-8 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:opacity-90 transition-all shadow-md"
+                                                    className="px-8 py-2.5 rounded-xl bg-[var(--foreground)] text-[var(--background)] font-bold hover:opacity-90 transition-all shadow-md"
                                                 >
                                                     סגור
                                                 </button>

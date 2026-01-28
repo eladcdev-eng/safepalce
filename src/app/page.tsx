@@ -113,8 +113,8 @@ export default function Dashboard() {
             M
           </div>
           <div className="overflow-hidden">
-            <h1 className="text-lg md:text-xl font-bold truncate">MeytaLog</h1>
-            <p className="text-[10px] md:text-xs text-[var(--secondary)] truncate max-w-[120px] md:max-w-none">שלום, {user?.email || 'אורחת'}</p>
+            <h1 className="text-lg md:text-xl font-bold truncate text-[var(--text-primary)]">MeytaLog</h1>
+            <p className="text-[10px] md:text-xs text-[var(--secondary)] truncate max-w-[120px] md:max-w-none font-medium">שלום, {user?.email || 'אורחת'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
@@ -124,7 +124,7 @@ export default function Dashboard() {
           {user && (
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 md:px-4 md:py-2 hover:bg-red-50 text-red-600 rounded-xl transition-all font-medium flex items-center gap-1.5 md:gap-2 text-sm md:text-base border border-transparent hover:border-red-100"
+              className="px-3 py-1.5 md:px-4 md:py-2 hover:bg-red-500/10 text-red-600 rounded-xl transition-all font-medium flex items-center gap-1.5 md:gap-2 text-sm md:text-base border border-transparent hover:border-red-500/20"
             >
               <LogOut size={16} />
               <span className="hidden xs:inline">התנתקות</span>
@@ -135,14 +135,14 @@ export default function Dashboard() {
 
       <main className="max-w-6xl mx-auto">
         {!user && !isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4 bg-white rounded-3xl border border-dashed border-[var(--surface-variant)] shadow-sm">
-            <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-center">נדרשת התחברות</h2>
-            <p className="text-sm md:text-base text-[var(--secondary)] mb-8 max-w-sm text-center">
+          <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4 bg-[var(--surface)] rounded-3xl border border-dashed border-[var(--surface-variant)] shadow-sm">
+            <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-center text-[var(--text-primary)]">נדרשת התחברות</h2>
+            <p className="text-sm md:text-base text-[var(--text-secondary)] mb-8 max-w-sm text-center">
               על מנת לשמור את נתוני המטופלים בבטחה, יש להתחבר למערכת.
             </p>
             <button
               onClick={handleLogin}
-              className="flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-semibold shadow-sm text-sm md:text-base active:scale-95"
+              className="flex items-center gap-3 px-6 py-3 bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-xl hover:bg-[var(--surface-variant)] transition-all font-semibold shadow-sm text-sm md:text-base active:scale-95"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -156,7 +156,7 @@ export default function Dashboard() {
         ) : (
           <>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-xl md:text-2xl font-bold">מטופלים ({filteredPatients.length})</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">מטופלים ({filteredPatients.length})</h2>
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="primary-button w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 shadow-lg shadow-[var(--primary)]/20"
@@ -167,13 +167,13 @@ export default function Dashboard() {
             </div>
 
             <div className="relative mb-8">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--outline)]" size={18} />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={18} />
               <input
                 type="text"
                 placeholder="חיפוש מטופל ברשימה..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-[var(--surface-variant)] rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] shadow-sm transition-all text-sm md:text-base"
+                className="w-full bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] shadow-sm transition-all text-sm md:text-base"
               />
             </div>
 
@@ -197,14 +197,14 @@ export default function Dashboard() {
                           {patient.first_name[0]}
                         </div>
                       </div>
-                      <h3 className="text-lg font-bold group-hover:text-[var(--primary)] transition-colors">
+                      <h3 className="text-lg font-bold group-hover:text-[var(--primary)] text-[var(--text-primary)] transition-colors">
                         {patient.first_name} {patient.last_name}
                       </h3>
-                      <p className="text-sm text-[var(--outline)] mt-2 line-clamp-2 flex-1">
+                      <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2 flex-1">
                         {patient.notes || "אין הערות קליניות רשומות"}
                       </p>
 
-                      <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center transition-opacity flex-shrink-0">
+                      <div className="mt-6 pt-4 border-t border-[var(--surface-variant)] flex justify-between items-center transition-opacity flex-shrink-0">
                         <div className="flex items-center gap-1.5 text-xs text-[var(--secondary)]">
                           <div className="w-2 h-2 rounded-full bg-[var(--secondary)] animate-pulse" />
                           פעיל
@@ -218,7 +218,7 @@ export default function Dashboard() {
                   </Link>
                 ))}
                 {filteredPatients.length === 0 && !isLoading && (
-                  <div className="col-span-full py-16 text-center text-[var(--outline)] border-2 border-dashed border-[var(--surface-variant)] rounded-3xl bg-white/50">
+                  <div className="col-span-full py-16 text-center text-[var(--text-secondary)] border-2 border-dashed border-[var(--surface-variant)] rounded-3xl bg-[var(--surface)]/50">
                     לא נמצאו מטופלים העונים לחיפוש
                   </div>
                 )}

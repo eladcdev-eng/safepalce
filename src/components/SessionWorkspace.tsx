@@ -41,11 +41,11 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
                 animate={{ opacity: 1, y: 0 }}
                 className="flex-1 glass-card p-5 md:p-6 flex flex-col min-h-[300px] lg:min-h-0"
             >
-                <div className="flex items-center gap-2 mb-4 text-[var(--secondary)]">
+                <div className="flex items-center gap-2 mb-4 text-[var(--text-secondary)]">
                     <FileText size={18} />
                     <h3 className="font-bold text-base md:text-lg">תמליל גולמי (STT)</h3>
                 </div>
-                <div className="flex-1 bg-slate-50/50 rounded-2xl p-4 overflow-y-auto max-h-[300px] lg:max-h-[500px] border border-slate-100 text-sm leading-relaxed whitespace-pre-wrap text-[var(--secondary)]">
+                <div className="flex-1 bg-[var(--background)] rounded-2xl p-4 overflow-y-auto max-h-[300px] lg:max-h-[500px] border border-[var(--surface-variant)] text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-secondary)]">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-40 gap-4">
                             <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
@@ -61,7 +61,7 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex-1 glass-card p-5 md:p-6 flex flex-col border-2 border-[var(--primary-container)] bg-white shadow-xl"
+                className="flex-1 glass-card p-5 md:p-6 flex flex-col border-2 border-[var(--primary-container)] bg-[var(--surface)] shadow-xl"
             >
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2 text-[var(--primary)]">
@@ -72,7 +72,7 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
                         <button
                             onClick={handleCopy}
                             disabled={!editedSummary}
-                            className={`p-2.5 rounded-xl transition-all border ${isCopying ? 'bg-green-50 border-green-200 text-green-600' : 'hover:bg-[var(--primary-container)] border-transparent text-[var(--primary)]'}`}
+                            className={`p-2.5 rounded-xl transition-all border ${isCopying ? 'bg-green-500/10 border-green-500 text-green-600' : 'hover:bg-[var(--primary-container)] border-transparent text-[var(--primary)]'}`}
                             title="העתק ללוח"
                         >
                             {isCopying ? <Check size={18} /> : <Copy size={18} />}
@@ -98,12 +98,12 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
                         <textarea
                             value={editedSummary}
                             onChange={(e) => setEditedSummary(e.target.value)}
-                            className="flex-1 w-full bg-white rounded-2xl p-4 border-2 border-[var(--primary-container)] focus:border-[var(--primary)] focus:outline-none text-base leading-relaxed min-h-[350px] lg:min-h-[450px] shadow-inner"
+                            className="flex-1 w-full bg-[var(--background)] text-[var(--text-primary)] rounded-2xl p-4 border-2 border-[var(--primary-container)] focus:border-[var(--primary)] focus:outline-none text-base leading-relaxed min-h-[350px] lg:min-h-[450px] shadow-inner"
                             dir="rtl"
                             placeholder="ערכי כאן את הסיכום..."
                         />
                     ) : (
-                        <div className="flex-1 bg-[var(--primary-container)]/10 rounded-2xl p-6 overflow-y-auto max-h-[400px] lg:max-h-[500px] border border-[var(--primary-container)]/30 text-base leading-relaxed whitespace-pre-wrap text-[var(--foreground)] font-medium">
+                        <div className="flex-1 bg-[var(--primary-container)]/20 rounded-2xl p-6 overflow-y-auto max-h-[400px] lg:max-h-[500px] border border-[var(--primary-container)]/30 text-base leading-relaxed whitespace-pre-wrap text-[var(--text-primary)] font-medium">
                             {editedSummary || "לאחר התמלול, הבינה המלאכותית תנסח כאן סיכום טיפולי מקצועי..."}
                         </div>
                     )}
@@ -117,7 +117,7 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
                         שמור בתיק המטופל
                     </button>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 }
