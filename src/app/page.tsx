@@ -78,6 +78,9 @@ export default function Dashboard() {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
+        queryParams: {
+          prompt: 'select_account',
+        }
       },
     });
 
@@ -114,13 +117,17 @@ export default function Dashboard() {
             <p className="text-xs text-[var(--secondary)]">שלום, {user?.email || 'אורחת'}</p>
           </div>
         </div>
-        <div className="flex gap-4">
-          <button className="p-2 hover:bg-[var(--surface-variant)] rounded-full transition-colors">
+        <div className="flex items-center gap-4">
+          <button className="p-2.5 hover:bg-[var(--surface-variant)] rounded-2xl transition-all text-[var(--outline)] hover:text-[var(--primary)]">
             <Settings size={20} />
           </button>
           {user && (
-            <button onClick={handleLogout} className="p-2 hover:bg-red-50 text-red-500 rounded-full transition-colors">
-              <LogOut size={20} />
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 hover:bg-red-50 text-red-600 rounded-xl transition-all font-medium flex items-center gap-2 border border-transparent hover:border-red-100"
+            >
+              <LogOut size={18} />
+              <span>התנתקות</span>
             </button>
           )}
         </div>

@@ -57,22 +57,18 @@ CREATE POLICY "Therapists can view own profile" ON therapists FOR SELECT USING (
 CREATE POLICY "Therapists can insert own profile" ON therapists FOR INSERT WITH CHECK (id = auth.uid());
 CREATE POLICY "Therapists can update own profile" ON therapists FOR UPDATE USING (id = auth.uid());
 
--- Patients policy
-CREATE POLICY "Therapists can manage own patients" ON patients 
-  FOR ALL USING (therapist_id = auth.uid());
+-- Patients policy: Allow all authenticated users to manage all patients
+CREATE POLICY "Authenticated users can manage all patients" ON patients 
+  FOR ALL USING (auth.role() = 'authenticated');
 
--- Sessions policy
-CREATE POLICY "Therapists can manage own sessions" ON sessions 
-  FOR ALL USING (therapist_id = auth.uid());
+-- Sessions policy: Allow all authenticated users to manage all sessions
+CREATE POLICY "Authenticated users can manage all sessions" ON sessions 
+  FOR ALL USING (auth.role() = 'authenticated');
 
--- Transcripts policy
-CREATE POLICY "Therapists can manage own transcripts" ON transcripts 
-  FOR ALL USING (EXISTS (
-    SELECT 1 FROM sessions s WHERE s.id = session_id AND s.therapist_id = auth.uid()
-  ));
+-- Transcripts policy: Allow all authenticated users to manage all transcripts
+CREATE POLICY "Authenticated users can manage all transcripts" ON transcripts 
+  FOR ALL USING (auth.role() = 'authenticated');
 
--- Summaries policy
-CREATE POLICY "Therapists can manage own summaries" ON summaries 
-  FOR ALL USING (EXISTS (
-    SELECT 1 FROM sessions s WHERE s.id = session_id AND s.therapist_id = auth.uid()
-  ));
+-- Summaries policy: Allow all authenticated users to manage all summaries
+CREATE POLICY "Authenticated users can manage all summaries" ON summaries 
+  FOR ALL USING (auth.role() = 'authenticated');
