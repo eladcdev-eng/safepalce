@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdfcff;
+  --foreground: #1a1c1e;
+  --primary: #6750a4;
+  --primary-container: #eaddff;
+  --secondary: #625b71;
+  --surface: #fdfcff;
+  --surface-variant: #e7e0eb;
+  --outline: #79747e;
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --glass: rgba(255, 255, 255, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1a1c1e;
+    --foreground: #e2e2e6;
+    --primary: #d0bcff;
+    --primary-container: #4f378b;
+    --secondary: #ccc2dc;
+    --surface: #1a1c1e;
+    --surface-variant: #49454f;
+    --outline: #938f99;
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --glass: rgba(26, 28, 30, 0.8);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  direction: rtl;
+}
+
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-variant);
+  box-shadow: var(--card-shadow);
+  border-radius: 24px;
+}
+
+.primary-button {
+  background: var(--primary);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 100px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.primary-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
