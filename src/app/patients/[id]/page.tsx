@@ -24,16 +24,35 @@ export default function PatientDetail() {
     const [isCopying, setIsCopying] = useState(false);
 
     useEffect(() => {
-        if (id) {
-            fetchPatientData();
-        }
+        if (!id) return;
+
+        // Initial fetch
+        fetchPatientData();
+
+        // Refetch on focus to ensure session is refreshed and data is up to date
+        const handleActivity = () => {
+            if (document.visibilityState === 'visible') {
+                console.log("Patient detail focused - verifying session/data");
+                fetchPatientData();
+            }
+        };
+
+        window.addEventListener('focus', handleActivity);
+        window.addEventListener('visibilitychange', handleActivity);
+
+        return () => {
+            window.removeEventListener('focus', handleActivity);
+            window.removeEventListener('visibilitychange', handleActivity);
+        };
     }, [id]);
 
     const fetchPatientData = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                console.log("No user session found, redirecting...");
+            // Use getSession first as it's faster and works better with transient network states
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session) {
+                console.log("No session found, redirecting to login...");
                 window.location.href = "/";
                 return;
             }

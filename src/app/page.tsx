@@ -16,21 +16,53 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Listen for auth state changes (essential for OAuth redirects)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth event:", event);
+    // Define a robust session check function
+    const verifySession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
         await ensureTherapistRecord(session.user);
-        fetchPatients();
+        await fetchPatients();
       } else {
+        // Only set loading to false if we are sure there is no session
+        setIsLoading(false);
+      }
+    };
+
+    // 1. Initial check on mount
+    verifySession();
+
+    // 2. Listen for auth state changes (essential for OAuth redirects and token refreshes)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth event:", event, session?.user?.email);
+
+      if (session?.user) {
+        setUser(session.user);
+        await ensureTherapistRecord(session.user);
+        await fetchPatients();
+      } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
         setUser(null);
         setPatients([]);
         setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    // 3. Proactive recovery - check session when user returns to the tab
+    const handleActivity = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("App returned to foreground - verifying session...");
+        verifySession();
+      }
+    };
+
+    window.addEventListener('focus', handleActivity);
+    window.addEventListener('visibilitychange', handleActivity);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('focus', handleActivity);
+      window.removeEventListener('visibilitychange', handleActivity);
+    };
   }, []);
 
   const ensureTherapistRecord = async (user: any) => {
