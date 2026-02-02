@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserPlus, LogOut, Settings } from "lucide-react";
+import { Search, UserPlus, LogOut, Settings, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef, useMemo } from "react";
 import AddPatientModal from "@/components/AddPatientModal";
@@ -17,6 +17,7 @@ export default function Dashboard() {
 
   const isFetchingRef = useRef(false);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const authEffectRan = useRef(false);
 
   // Unified data fetcher with mutex
   const loadAppData = async (currentUser: any) => {
@@ -36,69 +37,65 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (authEffectRan.current) return;
+    authEffectRan.current = true;
+
     let isMounted = true;
 
     const initializeAuth = async () => {
       try {
-        // Initial check: getSession is fast and syncs with local storage
+        console.log("Dashboard: Initializing auth...");
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session?.user) {
-          console.log("Found existing session, verifying...");
-          setUser(session.user);
-          setAuthInitialized(true);
-          await loadAppData(session.user);
-        } else {
-          console.log("No initial session found");
-          setIsLoading(false);
+        if (isMounted) {
+          if (session?.user) {
+            console.log("Dashboard: Session found", session.user.email);
+            setUser(session.user);
+            await loadAppData(session.user);
+          } else {
+            console.log("Dashboard: No session found");
+            setIsLoading(false);
+          }
           setAuthInitialized(true);
         }
       } catch (err) {
-        console.error("Auth initialization error:", err);
-        if (isMounted) setIsLoading(false);
+        console.error("Dashboard: Auth init error:", err);
+        if (isMounted) {
+          setIsLoading(false);
+          setAuthInitialized(true);
+        }
       }
     };
 
-    // 1. Start initialization
     initializeAuth();
 
-    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Supabase Auth Event:", event, session?.user?.email);
-
+      console.log("Dashboard Auth Event:", event, session?.user?.email);
       if (!isMounted) return;
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           setUser(session.user);
-          await loadAppData(session.user);
+          if (!isFetchingRef.current) {
+            await loadAppData(session.user);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setPatients([]);
         setIsLoading(false);
+        setAuthInitialized(true);
       }
     });
 
-    // 3. Robust visibility handler - don't show spinner, just sync in background
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isMounted) {
-        console.log("App visible - checking session validity...");
+      if (document.visibilityState === 'visible' && isMounted && user) {
+        // Only re-verify if we think we are logged in, to avoid flickering the login screen
         const { data: { session } } = await supabase.auth.getSession();
-
-        if (isMounted) {
-          if (session?.user) {
-            setUser(session.user);
-            // If we don't have patients yet, or just to be safe, sync
-            if (patients.length === 0 && !isLoading) {
-              await loadAppData(session.user);
-            }
-          } else if (user) {
-            // We thought we were logged in, but we're not
-            console.log("Session lost during inactivity");
-            setUser(null);
-            setPatients([]);
-          }
+        if (isMounted && !session?.user) {
+          console.log("Dashboard: Session lost on visibility change");
+          setUser(null);
+          setPatients([]);
         }
       }
     };
@@ -110,7 +107,7 @@ export default function Dashboard() {
       subscription.unsubscribe();
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]); // Re-run if user object changes to keep listeners in sync with state
+  }, [user]); // Add user to dependencies to allow visibility check to access current user state
 
   const ensureTherapistRecord = async (user: any) => {
     if (!user) return;
@@ -203,6 +200,13 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
+          <Link
+            href="/invoice-proforma"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-[var(--surface-variant)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--primary)] hover:text-white transition-all font-medium text-sm md:text-base border border-transparent shadow-sm"
+          >
+            <FileText size={18} />
+            <span>חשבונית עסקה</span>
+          </Link>
           <button className="p-2 md:p-2.5 hover:bg-[var(--surface-variant)] rounded-xl transition-all text-[var(--outline)]">
             <Settings size={18} />
           </button>
@@ -219,7 +223,12 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto">
-        {!user && !isLoading ? (
+        {!authInitialized || (isLoading && !user) ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-[var(--text-secondary)] font-medium">מתחבר למערכת...</p>
+          </div>
+        ) : !user ? (
           <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4 bg-[var(--surface)] rounded-3xl border border-dashed border-[var(--surface-variant)] shadow-sm">
             <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-center text-[var(--text-primary)]">נדרשת התחברות</h2>
             <p className="text-sm md:text-base text-[var(--text-secondary)] mb-8 max-w-sm text-center">

@@ -202,6 +202,14 @@ export default function PatientDetail() {
                     <span>חזרה לדשבורד</span>
                 </Link>
                 <div className="flex gap-2">
+                    <Link
+                        href={`/invoice-proforma?customer=${encodeURIComponent(`${patient.first_name} ${patient.last_name}`)}`}
+                        className="p-2.5 bg-white border border-[var(--surface-variant)] text-[var(--secondary)] hover:text-[var(--primary)] rounded-xl transition-all shadow-sm flex items-center gap-2"
+                        title="יצירת חשבונית עסקה"
+                    >
+                        <FileText size={18} />
+                        <span className="text-xs font-bold hidden sm:inline">חשבונית</span>
+                    </Link>
                     <button
                         onClick={() => setIsEditModalOpen(true)}
                         className="p-2.5 bg-white border border-[var(--surface-variant)] text-[var(--secondary)] hover:text-[var(--primary)] rounded-xl transition-all shadow-sm"
