@@ -202,10 +202,10 @@ export default function Dashboard() {
         <div className="flex items-center gap-2 md:gap-4">
           <Link
             href="/invoice-proforma"
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-[var(--surface-variant)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--primary)] hover:text-white transition-all font-medium text-sm md:text-base border border-transparent shadow-sm"
+            className="flex items-center gap-1.5 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2 bg-[var(--surface-variant)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--primary)] hover:text-white transition-all font-medium text-xs md:text-base border border-transparent shadow-sm"
           >
-            <FileText size={18} />
-            <span>חשבונית עסקה</span>
+            <FileText size={16} className="md:w-[18px] md:h-[18px]" />
+            <span className="xs:inline">חשבונית</span>
           </Link>
           <button className="p-2 md:p-2.5 hover:bg-[var(--surface-variant)] rounded-xl transition-all text-[var(--outline)]">
             <Settings size={18} />

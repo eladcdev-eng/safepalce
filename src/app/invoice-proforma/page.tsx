@@ -232,7 +232,7 @@ function InvoiceFormContent() {
 
                 <main className="max-w-3xl mx-auto">
                     <section className="glass-card overflow-hidden shadow-2xl border border-[var(--primary)]/10">
-                        <div className="bg-[var(--primary-container)] p-8 border-b border-[var(--primary)]/10">
+                        <div className="bg-[var(--primary-container)] p-5 md:p-8 border-b border-[var(--primary)]/10">
                             <div className="flex justify-between items-start mb-6">
                                 <div>
                                     <h2 className="text-3xl font-black text-[var(--primary)] mb-1">חשבונית עסקה</h2>
@@ -263,36 +263,38 @@ function InvoiceFormContent() {
                             </div>
                         </div>
 
-                        <div className="p-8">
-                            <table className="w-full text-right overflow-hidden">
-                                <thead>
-                                    <tr className="border-b-2 border-[var(--surface-variant)]">
-                                        <th className="py-4 font-bold text-[var(--text-secondary)] text-right text-xs">תיאור הפריט</th>
-                                        <th className="py-4 font-bold text-[var(--text-secondary)] text-center text-xs">כמות</th>
-                                        <th className="py-4 font-bold text-[var(--text-secondary)] text-center text-xs">מחיר ליח'</th>
-                                        <th className="py-4 font-bold text-[var(--text-primary)] text-left text-xs">סה"כ</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--surface-variant)]/50">
-                                    {getProcessedItems().map((item, idx) => (
-                                        <tr key={idx} className="group hover:bg-[var(--surface-variant)]/20 transition-colors">
-                                            <td className="py-5">
-                                                <p className="font-bold text-[var(--text-primary)]">{item.details}</p>
-                                                {item.comment && <p className="text-[11px] text-[var(--text-secondary)] mt-1 italic leading-relaxed">{item.comment}</p>}
-                                            </td>
-                                            <td className="py-5 text-center text-[var(--text-primary)] font-medium">{item.amount.toLocaleString()}</td>
-                                            <td className="py-5 text-center text-[var(--text-primary)]">₪{item.price.toLocaleString()}</td>
-                                            <td className="py-5 text-left font-bold text-[var(--text-primary)]">₪{(item.amount * item.price).toLocaleString()}</td>
+                        <div className="p-5 md:p-8">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-right min-w-[500px]">
+                                    <thead>
+                                        <tr className="border-b-2 border-[var(--surface-variant)]">
+                                            <th className="py-4 font-bold text-[var(--text-secondary)] text-right text-xs">תיאור הפריט</th>
+                                            <th className="py-4 font-bold text-[var(--text-secondary)] text-center text-xs">כמות</th>
+                                            <th className="py-4 font-bold text-[var(--text-secondary)] text-center text-xs">מחיר ליח'</th>
+                                            <th className="py-4 font-bold text-[var(--text-primary)] text-left text-xs">סה"כ</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="border-t-2 border-[var(--primary)]/30">
-                                        <td colSpan={3} className="py-8 text-xl font-bold text-[var(--text-secondary)]">סה"כ לתשלום:</td>
-                                        <td className="py-8 text-4xl font-black text-[var(--primary)] text-left">₪{calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--surface-variant)]/50">
+                                        {getProcessedItems().map((item, idx) => (
+                                            <tr key={idx} className="group hover:bg-[var(--surface-variant)]/20 transition-colors">
+                                                <td className="py-5">
+                                                    <p className="font-bold text-[var(--text-primary)]">{item.details}</p>
+                                                    {item.comment && <p className="text-[11px] text-[var(--text-secondary)] mt-1 italic leading-relaxed">{item.comment}</p>}
+                                                </td>
+                                                <td className="py-5 text-center text-[var(--text-primary)] font-medium">{item.amount.toLocaleString()}</td>
+                                                <td className="py-5 text-center text-[var(--text-primary)]">₪{item.price.toLocaleString()}</td>
+                                                <td className="py-5 text-left font-bold text-[var(--text-primary)]">₪{(item.amount * item.price).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 border-[var(--primary)]/30">
+                                            <td colSpan={3} className="py-8 text-xl font-bold text-[var(--text-secondary)]">סה"כ לתשלום:</td>
+                                            <td className="py-8 text-4xl font-black text-[var(--primary)] text-left">₪{calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </section>
 
@@ -428,7 +430,7 @@ function InvoiceFormContent() {
                                                 className="w-full bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all font-medium"
                                             />
                                         </div>
-                                        <div className="col-span-4 md:col-span-2 space-y-1.5">
+                                        <div className="col-span-6 md:col-span-2 space-y-1.5">
                                             <label className="text-[11px] font-black text-[var(--text-secondary)]">
                                                 {item.type === "special_travel" ? "מספר ימים" : "כמות"}
                                             </label>
@@ -455,13 +457,13 @@ function InvoiceFormContent() {
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs font-bold">₪</span>
                                             </div>
                                         </div>
-                                        <div className="col-span-10 md:col-span-2 flex flex-col items-end pb-1 pr-2">
+                                        <div className="col-span-9 md:col-span-2 flex flex-col items-end pb-1 pr-2">
                                             <span className="text-[10px] font-black text-[var(--text-secondary)] mb-1">סה"כ בשורה</span>
                                             <span className="text-lg font-black text-[var(--primary)]">
                                                 ₪{calculateItemTotal(item).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
-                                        <div className="col-span-2 md:col-span-1 flex justify-center pb-2">
+                                        <div className="col-span-3 md:col-span-1 flex justify-center pb-2">
                                             <button
                                                 type="button"
                                                 onClick={() => removeItem(index)}

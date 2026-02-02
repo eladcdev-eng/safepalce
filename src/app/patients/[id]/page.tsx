@@ -208,7 +208,7 @@ export default function PatientDetail() {
                         title="יצירת חשבונית עסקה"
                     >
                         <FileText size={18} />
-                        <span className="text-xs font-bold hidden sm:inline">חשבונית</span>
+                        <span className="text-xs font-bold">חשבונית</span>
                     </Link>
                     <button
                         onClick={() => setIsEditModalOpen(true)}
