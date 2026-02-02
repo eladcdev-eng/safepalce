@@ -4,7 +4,7 @@ import { ArrowRight, Mic, Calendar, FileText, ChevronLeft, X, Edit3, Trash2, Cop
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import SessionFlow from "@/components/SessionFlow";
 import AddPatientModal from "@/components/AddPatientModal";
 import { supabase } from "@/lib/supabase";
@@ -23,15 +23,40 @@ export default function PatientDetail() {
     const [editedSummaryText, setEditedSummaryText] = useState("");
     const [isCopying, setIsCopying] = useState(false);
 
+    const isFetchingRef = useRef(false);
+
     useEffect(() => {
         if (!id) return;
 
         let isMounted = true;
 
-        // 1. Initial fetch and auth check
-        fetchPatientData();
+        const verifyAndFetch = async () => {
+            if (isFetchingRef.current) return;
+            isFetchingRef.current = true;
 
-        // 2. Listen for auth changes (e.g. sign out in another tab)
+            try {
+                console.log("Patient Detail: Verifying session...");
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (isMounted) {
+                    if (session) {
+                        await fetchPatientData();
+                    } else {
+                        console.log("Patient Detail: No session found, redirecting");
+                        router.replace('/');
+                    }
+                }
+            } catch (err) {
+                console.error("Patient Detail: Verification error", err);
+            } finally {
+                isFetchingRef.current = false;
+                if (isMounted) setIsLoading(false);
+            }
+        };
+
+        verifyAndFetch();
+
+        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log("Patient Detail Auth Event:", event);
             if (!isMounted) return;
@@ -43,18 +68,13 @@ export default function PatientDetail() {
             }
         });
 
-        // 3. Refetch on focus - use getSession for speed
         const handleActivity = async () => {
-            if (document.visibilityState === 'visible' && !isLoading && isMounted) {
-                console.log("Checking session on tab return...");
+            if (document.visibilityState === 'visible' && isMounted) {
+                console.log("Patient Detail: Checking session on return...");
                 const { data: { session } } = await supabase.auth.getSession();
-                if (isMounted) {
-                    if (session) {
-                        fetchPatientData();
-                    } else {
-                        console.log("Session lost on return");
-                        router.replace('/');
-                    }
+                if (isMounted && !session) {
+                    console.log("Patient Detail: Session lost on return");
+                    router.replace('/');
                 }
             }
         };

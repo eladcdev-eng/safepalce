@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storageKey: 'meytalog-auth-token', // Custom key to avoid conflicts
+        storageKey: 'meytalog-auth-token',
+        flowType: 'pkce',
     }
 });

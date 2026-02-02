@@ -14,55 +14,74 @@ export default function Dashboard() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const userRef = useRef<any>(null); // Ref to track user without effect dependencies
+  const [mounted, setMounted] = useState(false);
 
   const isFetchingRef = useRef(false);
   const [authInitialized, setAuthInitialized] = useState(false);
-  const authEffectRan = useRef(false);
 
-  // Unified data fetcher with mutex
+  // Sync ref with state effectively and track mount
+  useEffect(() => {
+    userRef.current = user;
+    setMounted(true);
+  }, [user]);
+
+  // Data fetcher - always ensures therapist record exists then gets patients
   const loadAppData = async (currentUser: any) => {
-    if (isFetchingRef.current) return;
+    if (!currentUser || isFetchingRef.current) return;
+
+    console.log("Starting data load for:", currentUser.email);
     isFetchingRef.current = true;
+    setIsLoading(true);
 
     try {
-      console.log("Loading app data for:", currentUser?.email);
-      await ensureTherapistRecord(currentUser);
-      await fetchPatients();
+      // Run therapist record check in background or await it
+      // We don't want a failure here to block patient list
+      ensureTherapistRecord(currentUser).catch(err => console.error("Therapist record error:", err));
+
+      const data = await getPatients();
+      setPatients(data);
     } catch (err) {
       console.error("Failed to load app data:", err);
+      // If it's an auth error, clear user
+      if ((err as any).code === '42501' || (err as any).status === 401) {
+        setUser(null);
+      }
     } finally {
       isFetchingRef.current = false;
       setIsLoading(false);
     }
   };
 
+  // Trigger data load whenever user is found
   useEffect(() => {
-    if (authEffectRan.current) return;
-    authEffectRan.current = true;
+    if (user && patients.length === 0 && !isFetchingRef.current) {
+      loadAppData(user);
+    }
+  }, [user, patients.length]);
 
+  useEffect(() => {
     let isMounted = true;
 
     const initializeAuth = async () => {
       try {
-        console.log("Dashboard: Initializing auth...");
+        console.log("Dashboard: Checking initial session...");
         const { data: { session } } = await supabase.auth.getSession();
 
         if (isMounted) {
           if (session?.user) {
-            console.log("Dashboard: Session found", session.user.email);
+            console.log("Dashboard: Initial session found:", session.user.email);
             setUser(session.user);
-            await loadAppData(session.user);
           } else {
-            console.log("Dashboard: No session found");
-            setIsLoading(false);
+            console.log("Dashboard: No initial session");
           }
           setAuthInitialized(true);
         }
       } catch (err) {
         console.error("Dashboard: Auth init error:", err);
         if (isMounted) {
-          setIsLoading(false);
           setAuthInitialized(true);
+          setIsLoading(false);
         }
       }
     };
@@ -73,86 +92,59 @@ export default function Dashboard() {
       console.log("Dashboard Auth Event:", event, session?.user?.email);
       if (!isMounted) return;
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          setUser(session.user);
-          if (!isFetchingRef.current) {
-            await loadAppData(session.user);
-          }
-        }
-      } else if (event === 'SIGNED_OUT') {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
         setUser(null);
         setPatients([]);
-        setIsLoading(false);
-        setAuthInitialized(true);
       }
+
+      setAuthInitialized(true);
+      if (event === 'SIGNED_OUT') setIsLoading(false);
     });
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isMounted && user) {
-        // Only re-verify if we think we are logged in, to avoid flickering the login screen
-        const { data: { session } } = await supabase.auth.getSession();
-        if (isMounted && !session?.user) {
-          console.log("Dashboard: Session lost on visibility change");
-          setUser(null);
-          setPatients([]);
-        }
-      }
-    };
-
-    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]); // Add user to dependencies to allow visibility check to access current user state
+  }, []); // Run once on mount
 
   const ensureTherapistRecord = async (user: any) => {
     if (!user) return;
-    try {
-      const { data: therapist, error: tError } = await supabase
-        .from('therapists')
-        .select('id')
-        .eq('id', user.id)
-        .single();
+    const { data: therapist, error: tError } = await supabase
+      .from('therapists')
+      .select('id')
+      .eq('id', user.id)
+      .single();
 
-      if (tError && tError.code !== 'PGRST116') {
-        console.error("Error checking therapist:", tError);
-      }
-
-      if (!therapist) {
-        console.log("Creating therapist record...");
-        const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'מיטל';
-        await supabase.from('therapists').insert([
-          { id: user.id, email: user.email, name: fullName }
-        ]);
-      }
-    } catch (err) {
-      console.error("Failed to ensure therapist record:", err);
+    if (!therapist && (!tError || tError.code === 'PGRST116')) {
+      console.log("Creating therapist record...");
+      const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'מיטל';
+      await supabase.from('therapists').insert([
+        { id: user.id, email: user.email, name: fullName }
+      ]);
     }
   };
 
   const fetchPatients = async () => {
-    try {
-      const data = await getPatients();
-      setPatients(data);
-    } catch (err) {
-      console.error("Error fetching patients:", err);
-      // If we get an auth error, maybe clear user?
-      if ((err as any).code === '42501' || (err as any).status === 401) {
-        console.warn("Unauthorized patient fetch - clearing user");
-        setUser(null);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    // This is now integrated into loadAppData for better flow
+    if (user) await loadAppData(user);
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
+    try {
+      console.log("Logging out...");
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      localStorage.removeItem('meytalog-auth-token'); // Force clear
+      window.location.href = '/'; // Hard redirect to home
+    } catch (err: any) {
+      console.error("Logout error:", err);
+      // Fallback
+      localStorage.removeItem('meytalog-auth-token');
+      window.location.reload();
+    }
   };
 
   const handleLogin = async () => {
@@ -333,6 +325,12 @@ export default function Dashboard() {
         <p className="text-[10px] bg-black/50 text-white px-2 py-1 rounded">
           Auth: {authInitialized ? 'Ready' : 'Initing'} | User: {user ? 'Yes' : 'No'} | Patients: {patients.length} | Loading: {isLoading ? 'Yes' : 'No'}
         </p>
+        {mounted && (
+          <p className="text-[10px] bg-black/50 text-white px-2 py-1 rounded">
+            Storage: {localStorage.getItem('meytalog-auth-token') ? 'Found' : 'Missing'} |
+            URL: {window.location.hash.includes('access_token') ? 'Has Token' : 'No Hash'}
+          </p>
+        )}
         <button
           onClick={() => {
             localStorage.removeItem('meytalog-auth-token');
