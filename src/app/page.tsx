@@ -2,7 +2,7 @@
 
 import { Search, UserPlus, LogOut, Settings } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import AddPatientModal from "@/components/AddPatientModal";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -15,103 +15,105 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
+  const isFetchingRef = useRef(false);
+  const [authInitialized, setAuthInitialized] = useState(false);
+
+  // Unified data fetcher with mutex
+  const loadAppData = async (currentUser: any) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    try {
+      console.log("Loading app data for:", currentUser?.email);
+      await ensureTherapistRecord(currentUser);
+      await fetchPatients();
+    } catch (err) {
+      console.error("Failed to load app data:", err);
+    } finally {
+      isFetchingRef.current = false;
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    let authInitialized = false;
 
-    const handleAuth = async (session: any) => {
-      if (!isMounted) return;
-
+    const initializeAuth = async () => {
       try {
+        // Initial check: getSession is fast and syncs with local storage
+        const { data: { session } } = await supabase.auth.getSession();
+
         if (session?.user) {
-          // Use getUser to verify the session with the server
-          const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
-
-          if (error || !verifiedUser) {
-            console.warn("Session verification failed or expired:", error);
-            if (isMounted) {
-              setUser(null);
-              setIsLoading(false);
-            }
-            return;
-          }
-
-          if (isMounted) {
-            setUser(verifiedUser);
-            // Sequence these to ensure data is ready
-            await ensureTherapistRecord(verifiedUser);
-            await fetchPatients();
-          }
+          console.log("Found existing session, verifying...");
+          setUser(session.user);
+          setAuthInitialized(true);
+          await loadAppData(session.user);
         } else {
-          if (isMounted) {
-            setUser(null);
-            setPatients([]);
-            setIsLoading(false);
-          }
+          console.log("No initial session found");
+          setIsLoading(false);
+          setAuthInitialized(true);
         }
       } catch (err) {
-        console.error("Critical error in auth handler:", err);
-      } finally {
+        console.error("Auth initialization error:", err);
         if (isMounted) setIsLoading(false);
       }
     };
 
-    // 1. Listen for auth state changes
+    // 1. Start initialization
+    initializeAuth();
+
+    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth event:", event, session?.user?.email);
+      console.log("Supabase Auth Event:", event, session?.user?.email);
 
-      // If INITIAL_SESSION happens, we mark initialized
-      if (event === 'INITIAL_SESSION') {
-        authInitialized = true;
-      }
+      if (!isMounted) return;
 
-      // Handle login/logout/token refresh
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        await handleAuth(session);
-      } else if (event === 'SIGNED_OUT') {
-        if (isMounted) {
-          setUser(null);
-          setPatients([]);
-          setIsLoading(false);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          setUser(session.user);
+          await loadAppData(session.user);
         }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setPatients([]);
+        setIsLoading(false);
       }
     });
 
-    // 2. Safety fallback: if after 3 seconds INITIAL_SESSION hasn't fired, trigger manual check
-    const fallbackTimer = setTimeout(() => {
-      if (!authInitialized && isMounted && isLoading) {
-        console.warn("Auth initialization timed out - attempting fallback check");
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (isMounted && !authInitialized) {
-            handleAuth(session);
-          }
-        });
-      }
-    }, 3000);
+    // 3. Robust visibility handler - don't show spinner, just sync in background
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        console.log("App visible - checking session validity...");
+        const { data: { session } } = await supabase.auth.getSession();
 
-    // 3. Proactive recovery - check session when user returns to the tab
-    const handleActivity = () => {
-      if (document.visibilityState === 'visible' && !isLoading) {
-        console.log("App returned to foreground - verifying session...");
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (isMounted) handleAuth(session);
-        });
+        if (isMounted) {
+          if (session?.user) {
+            setUser(session.user);
+            // If we don't have patients yet, or just to be safe, sync
+            if (patients.length === 0 && !isLoading) {
+              await loadAppData(session.user);
+            }
+          } else if (user) {
+            // We thought we were logged in, but we're not
+            console.log("Session lost during inactivity");
+            setUser(null);
+            setPatients([]);
+          }
+        }
       }
     };
 
-    window.addEventListener('focus', handleActivity);
-    window.addEventListener('visibilitychange', handleActivity);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       isMounted = false;
-      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
-      window.removeEventListener('focus', handleActivity);
-      window.removeEventListener('visibilitychange', handleActivity);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [user]); // Re-run if user object changes to keep listeners in sync with state
 
   const ensureTherapistRecord = async (user: any) => {
+    if (!user) return;
     try {
       const { data: therapist, error: tError } = await supabase
         .from('therapists')
@@ -124,7 +126,7 @@ export default function Dashboard() {
       }
 
       if (!therapist) {
-        console.log("Creating therapist record for Google user...");
+        console.log("Creating therapist record...");
         const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'מיטל';
         await supabase.from('therapists').insert([
           { id: user.id, email: user.email, name: fullName }
@@ -141,6 +143,11 @@ export default function Dashboard() {
       setPatients(data);
     } catch (err) {
       console.error("Error fetching patients:", err);
+      // If we get an auth error, maybe clear user?
+      if ((err as any).code === '42501' || (err as any).status === 401) {
+        console.warn("Unauthorized patient fetch - clearing user");
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -311,6 +318,22 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddPatient}
       />
+
+      {/* Subtle Debug Panel for finding persistence issues */}
+      <div className="fixed bottom-4 left-4 z-50 opacity-10 hover:opacity-100 transition-opacity flex flex-col gap-1 items-start">
+        <p className="text-[10px] bg-black/50 text-white px-2 py-1 rounded">
+          Auth: {authInitialized ? 'Ready' : 'Initing'} | User: {user ? 'Yes' : 'No'} | Patients: {patients.length} | Loading: {isLoading ? 'Yes' : 'No'}
+        </p>
+        <button
+          onClick={() => {
+            localStorage.removeItem('meytalog-auth-token');
+            window.location.reload();
+          }}
+          className="text-[8px] bg-red-500/20 text-red-600 px-2 py-1 rounded border border-red-500/30"
+        >
+          Reset Auth Status
+        </button>
+      </div>
     </div>
   );
 }

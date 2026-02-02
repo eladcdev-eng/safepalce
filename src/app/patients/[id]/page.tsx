@@ -32,41 +32,59 @@ export default function PatientDetail() {
         fetchPatientData();
 
         // 2. Listen for auth changes (e.g. sign out in another tab)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT' && isMounted) {
-                router.push('/');
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("Patient Detail Auth Event:", event);
+            if (!isMounted) return;
+
+            if (event === 'SIGNED_OUT') {
+                router.replace('/');
+            } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+                if (session?.user) fetchPatientData();
             }
         });
 
-        // 3. Refetch on focus to ensure session is refreshed and data is up to date
-        const handleActivity = () => {
-            if (document.visibilityState === 'visible' && !isLoading) {
-                console.log("Patient detail focused - verifying session/data");
-                fetchPatientData();
+        // 3. Refetch on focus - use getSession for speed
+        const handleActivity = async () => {
+            if (document.visibilityState === 'visible' && !isLoading && isMounted) {
+                console.log("Checking session on tab return...");
+                const { data: { session } } = await supabase.auth.getSession();
+                if (isMounted) {
+                    if (session) {
+                        fetchPatientData();
+                    } else {
+                        console.log("Session lost on return");
+                        router.replace('/');
+                    }
+                }
             }
         };
 
-        window.addEventListener('focus', handleActivity);
         window.addEventListener('visibilitychange', handleActivity);
 
         return () => {
             isMounted = false;
             subscription.unsubscribe();
-            window.removeEventListener('focus', handleActivity);
             window.removeEventListener('visibilitychange', handleActivity);
         };
     }, [id]);
 
     const fetchPatientData = async () => {
         try {
-            // Use getUser to verify the session with the server
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            // First check session locally
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (authError || !user) {
-                console.log("No valid session found, redirecting to login...");
-                router.push('/');
-                return;
+            if (!session) {
+                // Try a harder check if we think we might have one
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError || !user) {
+                    console.log("No valid user found, redirecting...");
+                    router.replace('/');
+                    return;
+                }
             }
+
+            const activeUser = session?.user || (await supabase.auth.getUser()).data.user;
+            if (!activeUser) return; // Should have redirected by now
 
             const { data: pData, error: pError } = await supabase
                 .from('patients')
