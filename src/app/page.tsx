@@ -152,7 +152,12 @@ export default function Dashboard() {
             <Sparkles size={24} />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--text-primary)]">MeytaLog</h1>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+              מיטלוג
+              <span className="text-xs md:text-sm font-medium text-[var(--primary)] bg-[var(--primary-container)] px-2 py-0.5 rounded-full animate-pulse">
+                מוקדש לך באהבה ❤️
+              </span>
+            </h1>
             <p className="text-xs font-semibold text-[var(--primary)] opacity-80">סטודיו לטיפול באומנות</p>
           </div>
         </div>
@@ -197,10 +202,10 @@ export default function Dashboard() {
             <div className="w-20 h-20 bg-[var(--primary-container)] rounded-3xl flex items-center justify-center text-[var(--primary)] mb-8">
               <Sparkles size={40} />
             </div>
-            <h2 className="text-3xl font-black mb-4 text-[var(--text-primary)]">ברוכה הבאה ל-MeytaLog</h2>
+            <h2 className="text-3xl font-black mb-4 text-[var(--text-primary)]">ברוכה הבאה למיטלוג</h2>
             <p className="text-lg text-[var(--text-secondary)] mb-10 leading-relaxed">
-              המרחב הדיגיטלי שלך לניהול ותיעוד טיפולים באומנות. 
-              התחברי כדי להתחיל ליצור סדר בסטודיו.
+              המרחב הדיגיטלי שלך לניהול ותיעוד טיפולים באומנות. <br/>
+              <span className="text-[var(--primary)] font-bold italic">מוקדש לך באהבה ❤️</span>
             </p>
             <button
               onClick={handleLogin}
