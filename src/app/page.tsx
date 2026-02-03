@@ -1,8 +1,8 @@
 "use client";
 
-import { Search, UserPlus, LogOut, Settings, FileText } from "lucide-react";
+import { Search, UserPlus, LogOut, Settings, FileText, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import AddPatientModal from "@/components/AddPatientModal";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -14,36 +14,26 @@ export default function Dashboard() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const userRef = useRef<any>(null); // Ref to track user without effect dependencies
   const [mounted, setMounted] = useState(false);
-
   const isFetchingRef = useRef(false);
   const [authInitialized, setAuthInitialized] = useState(false);
 
-  // Sync ref with state effectively and track mountד
   useEffect(() => {
-    userRef.current = user;
     setMounted(true);
-  }, [user]);
+  }, []);
 
-  // Data fetcher - always ensures therapist record exists then gets patients
   const loadAppData = async (currentUser: any) => {
     if (!currentUser || isFetchingRef.current) return;
 
-    console.log("Starting data load for:", currentUser.email);
     isFetchingRef.current = true;
     setIsLoading(true);
 
     try {
-      // Run therapist record check in background or await it
-      // We don't want a failure here to block patient list
       ensureTherapistRecord(currentUser).catch(err => console.error("Therapist record error:", err));
-
       const data = await getPatients();
       setPatients(data);
     } catch (err) {
       console.error("Failed to load app data:", err);
-      // If it's an auth error, clear user
       if ((err as any).code === '42501' || (err as any).status === 401) {
         setUser(null);
       }
@@ -53,7 +43,6 @@ export default function Dashboard() {
     }
   };
 
-  // Trigger data load whenever user is found
   useEffect(() => {
     if (user && patients.length === 0 && !isFetchingRef.current) {
       loadAppData(user);
@@ -65,19 +54,13 @@ export default function Dashboard() {
 
     const initializeAuth = async () => {
       try {
-        console.log("Dashboard: Checking initial session...");
         const { data: { session } } = await supabase.auth.getSession();
-
         if (isMounted) {
           if (session?.user) {
-            console.log("Dashboard: Initial session found:", session.user.email);
             setUser(session.user);
-            // Clean URL if we have tokens after successful auth
             if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) {
               window.history.replaceState(null, '', window.location.pathname);
             }
-          } else {
-            console.log("Dashboard: No initial session");
           }
           setAuthInitialized(true);
         }
@@ -93,22 +76,13 @@ export default function Dashboard() {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Dashboard Auth Event:", event, session?.user?.email);
       if (!isMounted) return;
-
       if (session?.user) {
         setUser(session.user);
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          // Clean URL on successful sign in
-          if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) {
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-        }
       } else {
         setUser(null);
         setPatients([]);
       }
-
       setAuthInitialized(true);
       if (event === 'SIGNED_OUT') setIsLoading(false);
     });
@@ -117,7 +91,7 @@ export default function Dashboard() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Run once on mount
+  }, []);
 
   const ensureTherapistRecord = async (user: any) => {
     if (!user) return;
@@ -128,7 +102,6 @@ export default function Dashboard() {
       .single();
 
     if (!therapist && (!tError || tError.code === 'PGRST116')) {
-      console.log("Creating therapist record...");
       const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'מיטל';
       await supabase.from('therapists').insert([
         { id: user.id, email: user.email, name: fullName }
@@ -136,35 +109,14 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPatients = async () => {
-    // This is now integrated into loadAppData for better flow
-    if (user) await loadAppData(user);
-  };
-
   const handleLogout = async () => {
     try {
-      console.log("Logging out...");
-      // For mobile reliability, clear storage first then sign out
       localStorage.removeItem('meytalog-auth-token');
-
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.warn("Supabase signOut error (expected if session already cleared):", error);
-      }
-
+      await supabase.auth.signOut();
       window.location.href = '/';
     } catch (err: any) {
-      console.error("Logout error:", err);
-      localStorage.removeItem('meytalog-auth-token');
       window.location.reload();
     }
-  };
-
-  const handleResetConnection = () => {
-    localStorage.removeItem('meytalog-auth-token');
-    // Clear cookies too if any meytalog-auth-token exists
-    document.cookie = "meytalog-auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = '/';
   };
 
   const handleLogin = async () => {
@@ -172,26 +124,18 @@ export default function Dashboard() {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
-        queryParams: {
-          prompt: 'select_account',
-        }
+        queryParams: { prompt: 'select_account' }
       },
     });
-
-    if (error) alert("שגיאה בהתחברות עם גוגל: " + error.message);
+    if (error) alert("שגיאה בהתחברות: " + error.message);
   };
 
   const handleAddPatient = async (patientData: any) => {
     try {
-      console.log("Adding patient:", patientData);
-      const newPatient = await createPatient(patientData);
-      console.log("Patient created successfully:", newPatient);
-      fetchPatients();
+      await createPatient(patientData);
+      const data = await getPatients();
+      setPatients(data);
     } catch (err: any) {
-      console.error("Error creating patient:", err);
-      if (err.message) console.error("Error Message Detail:", err.message);
-      if (err.details) console.error("Supabase Error Details:", err.details);
-
       alert(`שגיאה ביצירת מטופל: ${err.message || "בדקי חיבור לרשת"}`);
     }
   };
@@ -199,142 +143,158 @@ export default function Dashboard() {
   const filteredPatients = patients.filter(p =>
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
   return (
-    <div className="min-h-screen bg-[var(--background)] p-4 md:p-6 pb-20">
-      <header className="flex justify-between items-center mb-6 bg-[var(--glass)] backdrop-blur-md p-3 md:p-4 rounded-2xl border border-[var(--surface-variant)] shadow-sm sticky top-4 z-40">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-[var(--primary)] rounded-full flex items-center justify-center text-white font-bold text-sm md:text-base">
-            M
+    <div className="min-h-screen p-4 md:p-8 pb-24">
+      <header className="max-w-6xl mx-auto flex justify-between items-center mb-10 glass-card p-4 md:p-5 sticky top-4 z-40">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[var(--primary)]/20">
+            <Sparkles size={24} />
           </div>
-          <div className="overflow-hidden">
-            <h1 className="text-lg md:text-xl font-bold truncate text-[var(--text-primary)]">MeytaLog</h1>
-            <p className="text-[10px] md:text-xs text-[var(--secondary)] truncate max-w-[120px] md:max-w-none font-medium">שלום, {user?.email || 'אורחת'}</p>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-[var(--text-primary)]">MeytaLog</h1>
+            <p className="text-xs font-semibold text-[var(--primary)] opacity-80">סטודיו לטיפול באומנות</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-4">
+        
+        <div className="flex items-center gap-2 md:gap-3">
           <Link
             href="/invoice-proforma"
-            className="flex items-center gap-1.5 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2 bg-[var(--surface-variant)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--primary)] hover:text-white transition-all font-medium text-xs md:text-base border border-transparent shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-container)] text-[var(--primary)] rounded-2xl hover:bg-[var(--primary)] hover:text-white transition-all font-bold text-sm md:text-base shadow-sm"
           >
-            <FileText size={16} className="md:w-[18px] md:h-[18px]" />
-            <span className="hidden min-[380px]:inline">חשבונית</span>
+            <FileText size={18} />
+            <span className="hidden sm:inline">חשבונית</span>
           </Link>
-          <button className="p-2 md:p-2.5 hover:bg-[var(--surface-variant)] rounded-xl transition-all text-[var(--outline)]">
-            <Settings size={18} />
-          </button>
+          
           {user && (
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 md:px-4 md:py-2 hover:bg-red-500/10 text-red-600 rounded-xl transition-all font-medium flex items-center gap-1.5 md:gap-2 text-sm md:text-base border border-transparent hover:border-red-500/20"
+              className="p-2.5 hover:bg-red-50 rounded-2xl transition-all text-red-500 border border-transparent hover:border-red-100"
+              title="התנתקות"
             >
-              <LogOut size={16} />
-              <span className="hidden min-[380px]:inline">התנתקות</span>
+              <LogOut size={20} />
             </button>
           )}
+          
+          <button className="p-2.5 hover:bg-[var(--surface-variant)] rounded-2xl transition-all text-[var(--outline)]">
+            <Settings size={20} />
+          </button>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto">
         {!authInitialized ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-[var(--text-secondary)] font-medium">מתחבר למערכת...</p>
+          <div className="flex flex-col items-center justify-center py-32">
+            <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-6" />
+            <p className="text-[var(--text-secondary)] font-bold text-lg animate-pulse">יוצרים מרחב טיפולי...</p>
           </div>
         ) : !user ? (
-          <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4 bg-[var(--surface)] rounded-3xl border border-dashed border-[var(--surface-variant)] shadow-sm">
-            <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-center text-[var(--text-primary)]">נדרשת התחברות</h2>
-            <p className="text-sm md:text-base text-[var(--text-secondary)] mb-8 max-w-sm text-center">
-              על מנת לשמור את נתוני המטופלים בבטחה, יש להתחבר למערכת.
-            </p>
-            <div className="flex flex-col items-center gap-6">
-              <button
-                onClick={handleLogin}
-                className="flex items-center gap-3 px-8 py-4 bg-[var(--primary)] text-white rounded-2xl hover:opacity-90 transition-all font-bold shadow-lg shadow-[var(--primary)]/20 active:scale-95 text-base md:text-lg"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="currentColor" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor" opacity="0.8" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="currentColor" opacity="0.8" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor" opacity="0.8" />
-                </svg>
-                התחברי עם Google
-              </button>
-
-              <button
-                onClick={handleResetConnection}
-                className="text-sm text-[var(--text-secondary)] hover:text-red-500 transition-colors underline underline-offset-4"
-              >
-                נתקלה בבעיה? לחצי כאן לאיפוס החיבור
-              </button>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-20 px-6 glass-card text-center max-w-2xl mx-auto"
+          >
+            <div className="w-20 h-20 bg-[var(--primary-container)] rounded-3xl flex items-center justify-center text-[var(--primary)] mb-8">
+              <Sparkles size={40} />
             </div>
-          </div>
+            <h2 className="text-3xl font-black mb-4 text-[var(--text-primary)]">ברוכה הבאה ל-MeytaLog</h2>
+            <p className="text-lg text-[var(--text-secondary)] mb-10 leading-relaxed">
+              המרחב הדיגיטלי שלך לניהול ותיעוד טיפולים באומנות. 
+              התחברי כדי להתחיל ליצור סדר בסטודיו.
+            </p>
+            <button
+              onClick={handleLogin}
+              className="primary-button flex items-center gap-3 text-lg px-10 py-5"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="currentColor" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor" opacity="0.8" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="currentColor" opacity="0.8" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor" opacity="0.8" />
+              </svg>
+              התחברי עם Google
+            </button>
+          </motion.div>
         ) : (
           <>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">מטופלים ({filteredPatients.length})</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
+              <div>
+                <h2 className="text-3xl font-black text-[var(--text-primary)] mb-1">המטופלים שלי</h2>
+                <p className="text-[var(--text-secondary)] font-medium">יש לך {filteredPatients.length} מטופלים רשומים</p>
+              </div>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="primary-button w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 shadow-lg shadow-[var(--primary)]/20"
+                className="primary-button w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                <UserPlus size={18} />
+                <UserPlus size={20} />
                 מטופל חדש
               </button>
             </div>
 
-            <div className="relative mb-8">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={18} />
+            <div className="relative mb-12 group">
+              <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--outline)] group-focus-within:text-[var(--primary)] transition-colors" size={20} />
               <input
                 type="text"
-                placeholder="חיפוש מטופל ברשימה..."
+                placeholder="חיפוש מטופל לפי שם..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--surface-variant)] rounded-2xl py-3.5 pr-11 pl-4 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] shadow-sm transition-all text-sm md:text-base"
+                className="w-full bg-[var(--surface)] text-[var(--text-primary)] border-2 border-transparent rounded-3xl py-5 pr-14 pl-6 focus:outline-none focus:border-[var(--primary)]/20 shadow-xl shadow-black/[0.02] transition-all text-lg font-medium"
               />
             </div>
 
             {isLoading ? (
-              <div className="flex justify-center items-center h-40">
-                <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+              <div className="flex justify-center items-center h-64">
+                <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {filteredPatients.map((patient) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                {filteredPatients.map((patient, idx) => (
                   <Link href={`/patients/${patient.id}`} key={patient.id}>
                     <motion.div
-                      whileHover={{ y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-5 md:p-6 cursor-pointer border border-transparent hover:border-[var(--primary)]/30 transition-all group h-full flex flex-col"
+                      transition={{ delay: idx * 0.05 }}
+                      whileHover={{ y: -8, boxShadow: "0 20px 25px -5px rgba(139, 92, 246, 0.1)" }}
+                      className="glass-card p-6 md:p-8 cursor-pointer group h-full flex flex-col relative overflow-hidden"
                     >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="w-12 h-12 bg-[var(--primary-container)] text-[var(--primary)] rounded-2xl flex items-center justify-center font-bold text-lg shadow-inner">
+                      <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-[var(--primary)] to-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-[var(--primary-container)] text-[var(--primary)] rounded-2xl flex items-center justify-center font-black text-xl shadow-inner">
                           {patient.first_name[0]}
                         </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">
+                            {patient.first_name} {patient.last_name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--secondary)] mt-1">
+                            <div className="w-2 h-2 rounded-full bg-[var(--secondary)]" />
+                            בטיפול
+                          </div>
+                        </div>
                       </div>
-                      <h3 className="text-lg font-bold group-hover:text-[var(--primary)] text-[var(--text-primary)] transition-colors">
-                        {patient.first_name} {patient.last_name}
-                      </h3>
-                      <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2 flex-1">
-                        {patient.notes || "אין הערות קליניות רשומות"}
+                      
+                      <p className="text-[var(--text-secondary)] leading-relaxed line-clamp-3 flex-1 font-medium">
+                        {patient.notes || "אין הערות קליניות רשומות עדיין..."}
                       </p>
 
-                      <div className="mt-6 pt-4 border-t border-[var(--surface-variant)] flex justify-between items-center transition-opacity flex-shrink-0">
-                        <div className="flex items-center gap-1.5 text-xs text-[var(--secondary)]">
-                          <div className="w-2 h-2 rounded-full bg-[var(--secondary)] animate-pulse" />
-                          פעיל
-                        </div>
-                        <span className="text-[var(--primary)] text-sm font-bold flex items-center gap-1">
-                          צפייה
-                          <span className="text-lg">←</span>
+                      <div className="mt-8 pt-6 border-t border-[var(--surface-variant)] flex justify-end items-center">
+                        <span className="text-[var(--primary)] font-black flex items-center gap-2 group-hover:gap-3 transition-all">
+                          לתיק המטופל
+                          <span className="text-2xl">←</span>
                         </span>
                       </div>
                     </motion.div>
                   </Link>
                 ))}
+                
                 {filteredPatients.length === 0 && !isLoading && (
-                  <div className="col-span-full py-16 text-center text-[var(--text-secondary)] border-2 border-dashed border-[var(--surface-variant)] rounded-3xl bg-[var(--surface)]/50">
-                    לא נמצאו מטופלים העונים לחיפוש
+                  <div className="col-span-full py-24 text-center glass-card border-dashed border-2">
+                    <div className="w-16 h-16 bg-[var(--surface-variant)] rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--outline)]">
+                      <Search size={32} />
+                    </div>
+                    <p className="text-xl font-bold text-[var(--text-secondary)]">לא מצאנו מטופל כזה...</p>
+                    <p className="text-[var(--outline)] mt-2">אולי כדאי לנסות שם אחר?</p>
                   </div>
                 )}
               </div>
@@ -348,28 +308,6 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddPatient}
       />
-
-      {/* Subtle Debug Panel for finding persistence issues */}
-      <div className="fixed bottom-4 left-4 z-50 opacity-10 hover:opacity-100 transition-opacity flex flex-col gap-1 items-start">
-        <p className="text-[10px] bg-black/50 text-white px-2 py-1 rounded">
-          Auth: {authInitialized ? 'Ready' : 'Initing'} | User: {user ? 'Yes' : 'No'} | Patients: {patients.length} | Loading: {isLoading ? 'Yes' : 'No'}
-        </p>
-        {mounted && (
-          <p className="text-[10px] bg-black/50 text-white px-2 py-1 rounded">
-            Storage: {localStorage.getItem('meytalog-auth-token') ? 'Found' : 'Missing'} |
-            URL: {window.location.hash.includes('access_token') ? 'Has Token' : 'No Hash'}
-          </p>
-        )}
-        <button
-          onClick={() => {
-            localStorage.removeItem('meytalog-auth-token');
-            window.location.reload();
-          }}
-          className="text-[8px] bg-red-500/20 text-red-600 px-2 py-1 rounded border border-red-500/30"
-        >
-          Reset Auth Status
-        </button>
-      </div>
     </div>
   );
 }

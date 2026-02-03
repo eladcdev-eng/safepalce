@@ -31,88 +31,83 @@ export default function PatientDetail() {
         let isMounted = true;
 
         const verifyAndFetch = async () => {
-            if (isFetchingRef.current) return;
+            console.log("DEBUG: verifyAndFetch started, id:", id);
+            if (isFetchingRef.current) {
+                console.log("DEBUG: Already fetching, skipping");
+                return;
+            }
             isFetchingRef.current = true;
 
             try {
-                console.log("Patient Detail: Verifying session...");
-                const { data: { session } } = await supabase.auth.getSession();
+                console.log("DEBUG: Getting session...");
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                console.log("DEBUG: Session result:", { hasSession: !!session, error: sessionError });
 
-                if (isMounted) {
-                    if (session) {
+                if (!isMounted) {
+                    console.log("DEBUG: Component unmounted during session check");
+                    return;
+                }
+
+                if (session?.user) {
+                    console.log("DEBUG: Session found, fetching patient data");
+                    await fetchPatientData();
+                } else {
+                    console.log("DEBUG: No session, checking getUser...");
+                    const { data: { user }, error: userError } = await supabase.auth.getUser();
+                    console.log("DEBUG: getUser result:", { hasUser: !!user, error: userError });
+                    
+                    if (user) {
+                        console.log("DEBUG: User found via getUser, fetching patient data");
                         await fetchPatientData();
                     } else {
-                        console.log("Patient Detail: No session found, redirecting");
+                        console.log("DEBUG: No user found, redirecting to /");
                         router.replace('/');
                     }
                 }
             } catch (err) {
-                console.error("Patient Detail: Verification error", err);
+                console.error("DEBUG: Patient Detail: Verification error", err);
+                if (isMounted) setIsLoading(false);
             } finally {
                 isFetchingRef.current = false;
-                if (isMounted) setIsLoading(false);
+                console.log("DEBUG: verifyAndFetch finished");
             }
         };
 
         verifyAndFetch();
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log("Patient Detail Auth Event:", event);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log("DEBUG: onAuthStateChange event:", event, "hasSession:", !!session);
             if (!isMounted) return;
-
             if (event === 'SIGNED_OUT') {
                 router.replace('/');
-            } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-                if (session?.user) fetchPatientData();
-            }
-        });
-
-        const handleActivity = async () => {
-            if (document.visibilityState === 'visible' && isMounted) {
-                console.log("Patient Detail: Checking session on return...");
-                const { data: { session } } = await supabase.auth.getSession();
-                if (isMounted && !session) {
-                    console.log("Patient Detail: Session lost on return");
-                    router.replace('/');
+            } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                if (session?.user) {
+                    console.log("DEBUG: Auth state change triggered fetch");
+                    verifyAndFetch();
                 }
             }
-        };
-
-        window.addEventListener('visibilitychange', handleActivity);
+        });
 
         return () => {
             isMounted = false;
             subscription.unsubscribe();
-            window.removeEventListener('visibilitychange', handleActivity);
         };
     }, [id]);
 
     const fetchPatientData = async () => {
+        console.log("DEBUG: fetchPatientData started for id:", id);
         try {
-            // First check session locally
-            const { data: { session } } = await supabase.auth.getSession();
-
-            if (!session) {
-                // Try a harder check if we think we might have one
-                const { data: { user }, error: authError } = await supabase.auth.getUser();
-                if (authError || !user) {
-                    console.log("No valid user found, redirecting...");
-                    router.replace('/');
-                    return;
-                }
-            }
-
-            const activeUser = session?.user || (await supabase.auth.getUser()).data.user;
-            if (!activeUser) return; // Should have redirected by now
-
             const { data: pData, error: pError } = await supabase
                 .from('patients')
                 .select('*')
                 .eq('id', id)
                 .single();
 
-            if (pError) throw pError;
+            if (pError) {
+                console.error("DEBUG: Patient fetch error:", pError);
+                throw pError;
+            }
+            console.log("DEBUG: Patient data received:", pData?.id);
             setPatient(pData);
 
             const { data: sData, error: sError } = await supabase
@@ -125,12 +120,17 @@ export default function PatientDetail() {
                 .eq('patient_id', id)
                 .order('session_date', { ascending: false });
 
-            if (sError) throw sError;
+            if (sError) {
+                console.error("DEBUG: Sessions fetch error:", sError);
+                throw sError;
+            }
+            console.log("DEBUG: Sessions data received, count:", sData?.length);
             setSessions(sData);
         } catch (err) {
-            console.error("Error fetching patient data:", err);
+            console.error("DEBUG: Error fetching patient data:", err);
         } finally {
             setIsLoading(false);
+            console.log("DEBUG: fetchPatientData finished, isLoading set to false");
         }
     };
 
@@ -172,7 +172,6 @@ export default function PatientDetail() {
             await updateSummary(selectedSession.id, editedSummaryText);
             setIsEditingSummary(false);
             fetchPatientData();
-            // Update selected session to show new text immediately
             setSelectedSession({
                 ...selectedSession,
                 summaries: [{ summary_text: editedSummaryText }]
@@ -197,15 +196,16 @@ export default function PatientDetail() {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen flex flex-col items-center justify-center">
+            <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-6" />
+            <p className="text-[var(--text-secondary)] font-bold text-lg animate-pulse">טוען את תיק המטופל...</p>
         </div>
     );
 
     if (!patient) return <div className="p-8 text-center">מטופל לא נמצא.</div>;
 
     return (
-        <div className="min-h-screen bg-[var(--background)] p-6">
+        <div className="min-h-screen p-4 md:p-8 pb-24">
             {isRecordingSession && (
                 <SessionFlow
                     patientId={id as string}
@@ -216,110 +216,118 @@ export default function PatientDetail() {
                     onCancel={() => setIsRecordingSession(false)}
                 />
             )}
-            <header className="flex justify-between items-center mb-8">
-                <Link href="/" className="flex items-center gap-2 text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
+            <header className="max-w-4xl mx-auto flex justify-between items-center mb-10 glass-card p-4 md:p-5 sticky top-4 z-40">
+                <Link href="/" className="flex items-center gap-2 text-[var(--primary)] hover:opacity-80 transition-all font-bold">
                     <ArrowRight size={20} />
                     <span>חזרה לדשבורד</span>
                 </Link>
-                <div className="flex gap-2">
+                <div className="flex gap-2 md:gap-3">
                     <Link
                         href={`/invoice-proforma?customer=${encodeURIComponent(`${patient.first_name} ${patient.last_name}`)}`}
-                        className="p-2.5 bg-white border border-[var(--surface-variant)] text-[var(--secondary)] hover:text-[var(--primary)] rounded-xl transition-all shadow-sm flex items-center gap-2"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-container)] text-[var(--primary)] rounded-2xl hover:bg-[var(--primary)] hover:text-white transition-all font-bold text-sm shadow-sm"
                         title="יצירת חשבונית עסקה"
                     >
                         <FileText size={18} />
-                        <span className="text-xs font-bold">חשבונית</span>
+                        <span className="hidden sm:inline">חשבונית</span>
                     </Link>
                     <button
                         onClick={() => setIsEditModalOpen(true)}
-                        className="p-2.5 bg-white border border-[var(--surface-variant)] text-[var(--secondary)] hover:text-[var(--primary)] rounded-xl transition-all shadow-sm"
+                        className="p-2.5 hover:bg-[var(--surface-variant)] rounded-2xl transition-all text-[var(--outline)] border border-transparent hover:border-[var(--surface-variant)]"
                         title="עריכת פרטי מטופל"
                     >
-                        <Edit3 size={18} />
+                        <Edit3 size={20} />
                     </button>
                     <button
                         onClick={handleDeletePatient}
-                        className="p-2.5 bg-white border border-[var(--surface-variant)] text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm"
+                        className="p-2.5 hover:bg-red-50 rounded-2xl transition-all text-red-500 border border-transparent hover:border-red-100"
                         title="מחיקת מטופל"
                     >
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                     </button>
                 </div>
             </header>
 
             <main className="max-w-4xl mx-auto">
-                <div className="glass-card p-6 md:p-8 mb-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start text-center md:text-right">
-                    <div className="w-20 h-20 md:w-24 md:h-24 bg-[var(--primary-container)] text-[var(--primary)] rounded-3xl flex items-center justify-center font-bold text-3xl md:text-4xl shadow-inner">
+                <div className="glass-card p-6 md:p-10 mb-10 flex flex-col md:flex-row gap-8 md:gap-10 items-center md:items-start text-center md:text-right relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-[var(--primary)] to-[var(--accent)]" />
+                    
+                    <div className="w-24 h-24 md:w-32 md:h-32 bg-[var(--primary-container)] text-[var(--primary)] rounded-[40px] flex items-center justify-center font-black text-4xl md:text-5xl shadow-inner">
                         {patient.first_name[0]}
                     </div>
                     <div className="flex-1 w-full">
-                        <h1 className="text-2xl md:text-3xl font-bold mb-2">{patient.first_name} {patient.last_name}</h1>
-                        <div className="flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs md:text-sm text-[var(--secondary)]">
+                        <h1 className="text-3xl md:text-4xl font-black mb-3 text-[var(--text-primary)]">{patient.first_name} {patient.last_name}</h1>
+                        <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm font-bold text-[var(--primary)] opacity-70">
                             {patient.birth_date && <span>ת.לידה: {new Date(patient.birth_date).toLocaleDateString('he-IL')}</span>}
-                            <span className="hidden xs:inline text-[var(--outline)]">•</span>
+                            <span className="hidden xs:inline opacity-30">•</span>
                             <span>הצטרפות: {new Date(patient.created_at).toLocaleDateString('he-IL')}</span>
                         </div>
-                        <p className="mt-4 text-[var(--secondary)] text-sm md:text-base leading-relaxed max-w-2xl">
+                        <p className="mt-6 text-[var(--text-secondary)] text-base md:text-lg leading-relaxed max-w-2xl font-medium">
                             {patient.notes || "אין הערות קליניות רשומות למטופל זה."}
                         </p>
                     </div>
                     <button
                         onClick={() => setIsRecordingSession(true)}
-                        className="primary-button w-full md:w-auto flex items-center justify-center gap-2 h-fit py-4 px-8 shadow-lg shadow-[var(--primary)]/20 active:scale-95"
+                        className="primary-button w-full md:w-auto flex items-center justify-center gap-3 h-fit py-5 px-10 text-lg"
                     >
-                        <Mic size={20} />
+                        <Mic size={24} />
                         הקלט סיכום טיפול
                     </button>
                 </div>
 
                 <section>
-                    <h2 className="text-lg md:text-xl font-bold mb-6 flex items-center gap-2">
-                        <FileText size={20} className="text-[var(--primary)]" />
+                    <h2 className="text-xl font-black mb-8 flex items-center gap-3 text-[var(--text-primary)]">
+                        <div className="w-10 h-10 bg-[var(--primary-container)] rounded-xl flex items-center justify-center text-[var(--primary)]">
+                            <FileText size={20} />
+                        </div>
                         היסטוריית מפגשים ({sessions.length})
                     </h2>
 
-                    <div className="space-y-3 md:space-y-4">
+                    <div className="space-y-4">
                         {sessions.map((session, i) => (
                             <motion.div
                                 key={session.id}
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 onClick={() => setSelectedSession(session)}
-                                className="bg-[var(--surface)] border border-[var(--surface-variant)] p-4 rounded-2xl flex items-center justify-between hover:border-[var(--primary)]/50 transition-all cursor-pointer active:bg-[var(--surface-variant)] group hover:shadow-md"
+                                className="glass-card p-5 md:p-6 flex items-center justify-between cursor-pointer group relative overflow-hidden border-transparent hover:border-[var(--primary)]/20"
+                                whileHover={{ x: -4 }}
                             >
-                                <div className="flex items-center gap-3 md:gap-4 overflow-hidden flex-1">
-                                    <div className="w-10 h-10 md:w-11 md:h-11 bg-[var(--surface-variant)]/50 rounded-xl flex items-center justify-center text-[var(--primary)] flex-shrink-0">
-                                        <Calendar size={18} />
+                                <div className="flex items-center gap-4 md:gap-6 overflow-hidden flex-1">
+                                    <div className="w-12 h-12 bg-[var(--primary-container)] rounded-2xl flex items-center justify-center text-[var(--primary)] flex-shrink-0 shadow-inner">
+                                        <Calendar size={20} />
                                     </div>
                                     <div className="flex-1 overflow-hidden">
-                                        <h3 className="font-bold text-sm md:text-base truncate">מפגש מיום {new Date(session.session_date).toLocaleDateString('he-IL')}</h3>
-                                        <div className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-4">
-                                            <p className="text-[10px] md:text-xs text-[var(--outline)] flex-shrink-0">
+                                        <h3 className="font-black text-base md:text-lg text-[var(--text-primary)]">מפגש מיום {new Date(session.session_date).toLocaleDateString('he-IL')}</h3>
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
+                                            <p className="text-xs font-bold text-[var(--primary)] opacity-60 flex-shrink-0">
                                                 {new Date(session.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                             {session.summaries?.[0]?.summary_text && (
-                                                <p className="text-[10px] md:text-xs text-[var(--primary)] font-medium truncate flex-1 md:max-w-md">
-                                                    {session.summaries[0].summary_text.substring(0, 60)}...
+                                                <p className="text-xs text-[var(--text-secondary)] font-medium truncate flex-1 md:max-w-md">
+                                                    {session.summaries[0].summary_text}
                                                 </p>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-[var(--primary)] opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
-                                    <span className="text-xs font-bold hidden xs:inline">צפייה</span>
-                                    <ChevronLeft size={16} />
+                                <div className="flex items-center gap-2 text-[var(--primary)] opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                    <span className="text-sm font-black hidden sm:inline">צפייה</span>
+                                    <ChevronLeft size={20} />
                                 </div>
                             </motion.div>
                         ))}
                         {sessions.length === 0 && (
-                            <div className="py-16 text-center text-[var(--outline)] bg-white rounded-3xl border border-dashed border-[var(--surface-variant)]">
-                                טרם הוקלטו מפגשים למטופל זה.
+                            <div className="py-20 text-center glass-card border-dashed border-2">
+                                <div className="w-16 h-16 bg-[var(--surface-variant)] rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--outline)]">
+                                    <Calendar size={32} />
+                                </div>
+                                <p className="text-xl font-bold text-[var(--text-secondary)]">טרם הוקלטו מפגשים</p>
+                                <p className="text-[var(--outline)] mt-2">לחצי על הכפתור למעלה כדי להתחיל תיעוד ראשון</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Session Detail Modal */}
                     <AnimatePresence>
                         {selectedSession && (
                             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-hidden">
@@ -331,7 +339,7 @@ export default function PatientDetail() {
                                         setSelectedSession(null);
                                         setIsEditingSummary(false);
                                     }}
-                                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                                    className="absolute inset-0 bg-black/20 backdrop-blur-sm"
                                 />
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -339,13 +347,15 @@ export default function PatientDetail() {
                                     exit={{ opacity: 0, scale: 0.9, y: 20 }}
                                     className="relative bg-[var(--surface)] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-[var(--surface-variant)]"
                                 >
-                                    <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center bg-[var(--primary-container)]">
+                                    <div className="p-6 border-b border-[var(--surface-variant)] flex justify-between items-center bg-[var(--primary-container)]/30">
                                         <div className="flex-1">
-                                            <h3 className="text-xl font-bold text-[var(--primary)] flex items-center gap-2">
-                                                <FileText size={20} />
+                                            <h3 className="text-xl font-black text-[var(--text-primary)] flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center text-white">
+                                                    <FileText size={18} />
+                                                </div>
                                                 סיכום מפגש טיפולי
                                             </h3>
-                                            <p className="text-sm text-[var(--text-secondary)]">
+                                            <p className="text-sm font-bold text-[var(--primary)] opacity-70 mt-1 mr-10">
                                                 {new Date(selectedSession.session_date).toLocaleDateString('he-IL')} | {new Date(selectedSession.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>

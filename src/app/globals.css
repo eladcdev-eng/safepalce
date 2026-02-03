@@ -4,36 +4,38 @@
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #020617;
-  --primary: #6d28d9;
-  --primary-container: #ede9fe;
-  --secondary: #059669;
-  --secondary-container: #dcfce7;
+  --background: #fdfcfd; /* Very soft lavender/white */
+  --foreground: #1c1917;
+  --primary: #8b5cf6; /* Lavender */
+  --primary-container: #f5f3ff;
+  --secondary: #10b981; /* Sage */
+  --secondary-container: #ecfdf5;
+  --accent: #f472b6; /* Soft Rose */
   --surface: #ffffff;
-  --surface-variant: #f1f5f9;
-  --outline: #64748b;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --card-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
-  --glass: rgba(255, 255, 255, 0.85);
+  --surface-variant: #f8fafc;
+  --outline: #94a3b8;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --card-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.05), 0 8px 10px -6px rgba(139, 92, 246, 0.05);
+  --glass: rgba(255, 255, 255, 0.8);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #020617;
-    --foreground: #f1f5f9;
+    --background: #0f172a;
+    --foreground: #f8fafc;
     --primary: #a78bfa;
     --primary-container: #2e1065;
     --secondary: #34d399;
     --secondary-container: #064e3b;
-    --surface: #0f172a;
-    --surface-variant: #1e293b;
-    --outline: #94a3b8;
-    --text-primary: #f8fafc;
+    --accent: #fb7185;
+    --surface: #1e293b;
+    --surface-variant: #334155;
+    --outline: #64748b;
+    --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
-    --card-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4);
-    --glass: rgba(15, 23, 42, 0.9);
+    --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    --glass: rgba(30, 41, 59, 0.8);
   }
 }
 
@@ -42,26 +44,52 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   direction: rtl;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(244, 114, 182, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
 .glass-card {
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--surface-variant);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: var(--card-shadow);
-  border-radius: 24px;
+  border-radius: 32px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .primary-button {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
   color: white;
-  padding: 12px 24px;
-  border-radius: 100px;
+  padding: 14px 28px;
+  border-radius: 20px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
 }
 
 .primary-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
+  opacity: 0.95;
+}
+
+.primary-button:active {
+  transform: translateY(0);
+}
+
+.secondary-button {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 12px 24px;
+  border-radius: 20px;
+  font-weight: 600;
+  border: 1px solid var(--surface-variant);
+  transition: all 0.2s ease;
+}
+
+.secondary-button:hover {
+  background: var(--surface-variant);
+  border-color: var(--outline);
 }
