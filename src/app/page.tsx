@@ -20,7 +20,7 @@ export default function Dashboard() {
   const isFetchingRef = useRef(false);
   const [authInitialized, setAuthInitialized] = useState(false);
 
-  // Sync ref with state effectively and track mount
+  // Sync ref with state effectively and track mountד
   useEffect(() => {
     userRef.current = user;
     setMounted(true);
