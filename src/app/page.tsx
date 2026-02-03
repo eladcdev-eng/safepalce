@@ -66,7 +66,15 @@ export default function Dashboard() {
     const initializeAuth = async () => {
       try {
         console.log("Dashboard: Checking initial session...");
-        const { data: { session } } = await supabase.auth.getSession();
+        let { data: { session } } = await supabase.auth.getSession();
+
+        // Mobile fallback: if hash contains access_token but session is missing, wait a bit
+        if (!session && window.location.hash.includes('access_token')) {
+          console.log("Dashboard: Token found in URL but session missing, retrying...");
+          await new Promise(r => setTimeout(r, 1000));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+        }
 
         if (isMounted) {
           if (session?.user) {
@@ -134,14 +142,17 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       console.log("Logging out...");
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // For mobile reliability, clear storage first then sign out
+      localStorage.removeItem('meytalog-auth-token');
 
-      localStorage.removeItem('meytalog-auth-token'); // Force clear
-      window.location.href = '/'; // Hard redirect to home
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn("Supabase signOut error (expected if session already cleared):", error);
+      }
+
+      window.location.href = '/';
     } catch (err: any) {
       console.error("Logout error:", err);
-      // Fallback
       localStorage.removeItem('meytalog-auth-token');
       window.location.reload();
     }
@@ -197,7 +208,7 @@ export default function Dashboard() {
             className="flex items-center gap-1.5 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2 bg-[var(--surface-variant)] text-[var(--text-primary)] rounded-xl hover:bg-[var(--primary)] hover:text-white transition-all font-medium text-xs md:text-base border border-transparent shadow-sm"
           >
             <FileText size={16} className="md:w-[18px] md:h-[18px]" />
-            <span className="xs:inline">חשבונית</span>
+            <span className="hidden min-[380px]:inline">חשבונית</span>
           </Link>
           <button className="p-2 md:p-2.5 hover:bg-[var(--surface-variant)] rounded-xl transition-all text-[var(--outline)]">
             <Settings size={18} />
@@ -208,7 +219,7 @@ export default function Dashboard() {
               className="px-3 py-1.5 md:px-4 md:py-2 hover:bg-red-500/10 text-red-600 rounded-xl transition-all font-medium flex items-center gap-1.5 md:gap-2 text-sm md:text-base border border-transparent hover:border-red-500/20"
             >
               <LogOut size={16} />
-              <span className="hidden xs:inline">התנתקות</span>
+              <span className="hidden min-[380px]:inline">התנתקות</span>
             </button>
           )}
         </div>
