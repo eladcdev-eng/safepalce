@@ -93,7 +93,7 @@ export default function PatientDetail() {
             subscription.unsubscribe();
         };
     }, [id]);
-
+//aa
     const fetchPatientData = async () => {
         console.log("DEBUG: fetchPatientData started for id:", id);
         try {
