@@ -12,7 +12,7 @@ interface SessionFlowProps {
     onComplete: () => void;
     onCancel: () => void;
 }
-//בדיקה
+//בדיקהגדגד
 export default function SessionFlow({ patientId, onComplete, onCancel }: SessionFlowProps) {
     const [step, setStep] = useState<'recording' | 'processing' | 'workspace'>('recording');
     const [transcript, setTranscript] = useState("");
