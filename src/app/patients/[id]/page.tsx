@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Mic, Calendar, FileText, ChevronLeft, X, Edit3, Trash2, Copy, Check, Save } from "lucide-react";
+import { ArrowRight, Mic, Calendar, FileText, ChevronLeft, X, Edit3, Trash2, Copy, Check, Save, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import SessionFlow from "@/components/SessionFlow";
 import AddPatientModal from "@/components/AddPatientModal";
 import { supabase } from "@/lib/supabase";
-import { Patient, updatePatient, deletePatient, updateSummary, deleteSession } from "@/lib/patients";
+import { Patient, updatePatient, deletePatient, updateSummary, updateSummaryBrief, deleteSession, updateSessionDate, mergeSessions } from "@/lib/patients";
 
 export default function PatientDetail() {
     const { id } = useParams();
@@ -17,11 +17,16 @@ export default function PatientDetail() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [patient, setPatient] = useState<Patient | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
+    const [allSessionsRaw, setAllSessionsRaw] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const [isEditingSummary, setIsEditingSummary] = useState(false);
     const [editedSummaryText, setEditedSummaryText] = useState("");
     const [isCopying, setIsCopying] = useState(false);
+    const [allAffiliations, setAllAffiliations] = useState<string[]>([]);
+    const [isMergeMode, setIsMergeMode] = useState(false);
+    const [selectedForMerge, setSelectedForMerge] = useState<string[]>([]);
+    const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
 
     const isFetchingRef = useRef(false);
 
@@ -115,7 +120,9 @@ export default function PatientDetail() {
                 .select(`
                     id,
                     session_date,
-                    summaries (summary_text)
+                    parent_session_id,
+                    summaries (summary_text, summary_brief),
+                    transcripts (raw_text)
                 `)
                 .eq('patient_id', id)
                 .order('session_date', { ascending: false });
@@ -125,7 +132,17 @@ export default function PatientDetail() {
                 throw sError;
             }
             console.log("DEBUG: Sessions data received, count:", sData?.length);
-            setSessions(sData);
+            setAllSessionsRaw(sData || []);
+            // Filter to only show master sessions in the list
+            const masterSessions = sData?.filter(s => !s.parent_session_id) || [];
+            setSessions(masterSessions);
+
+            // Fetch all patients to get all unique affiliations for the modal
+            const { data: allPatients } = await supabase.from('patients').select('affiliation');
+            if (allPatients) {
+                const affiliations = Array.from(new Set(allPatients.map(p => p.affiliation).filter(Boolean) as string[]));
+                setAllAffiliations(affiliations);
+            }
         } catch (err) {
             console.error("DEBUG: Error fetching patient data:", err);
         } finally {
@@ -182,6 +199,26 @@ export default function PatientDetail() {
         }
     };
 
+    const handleGenerateBrief = async (sessionId: string, summaryText: string) => {
+        try {
+            const { generateBrief } = await import("@/lib/ai");
+            const briefRes = await generateBrief(summaryText);
+            if (briefRes.error) throw new Error(briefRes.error);
+
+            await updateSummaryBrief(sessionId, briefRes.text);
+            fetchPatientData();
+            if (selectedSession && selectedSession.id === sessionId) {
+                setSelectedSession({
+                    ...selectedSession,
+                    summaries: [{ ...selectedSession.summaries[0], summary_brief: briefRes.text }]
+                });
+            }
+        } catch (err) {
+            console.error("Error generating brief:", err);
+            alert("שגיאה ביצירת התמצית");
+        }
+    };
+
     const handleDeleteSession = async (sessionId: string) => {
         if (confirm("האם למחוק מפגש זה לצמיתות?")) {
             try {
@@ -191,6 +228,45 @@ export default function PatientDetail() {
             } catch (err) {
                 console.error("Error deleting session:", err);
                 alert("שגיאה במחיקת המפגש");
+            }
+        }
+    };
+
+    const handleUpdateSessionDate = async (sessionId: string, newDate: string) => {
+        try {
+            await updateSessionDate(sessionId, newDate);
+            fetchPatientData();
+        } catch (err) {
+            console.error("Error updating session date:", err);
+            alert("שגיאה בעדכון תאריך המפגש");
+        }
+    };
+
+    const toggleFolder = (e: React.MouseEvent, sessionId: string) => {
+        e.stopPropagation();
+        setExpandedFolders(prev =>
+            prev.includes(sessionId)
+                ? prev.filter(id => id !== sessionId)
+                : [...prev, sessionId]
+        );
+    };
+
+    const handleMergeSessions = async () => {
+        if (selectedForMerge.length < 2) {
+            alert("יש לבחור לפחות שני מפגשים למיזוג");
+            return;
+        }
+
+        if (confirm(`האם למזג ${selectedForMerge.length} מפגשים למפגש אחד? המפגש הראשון שנבחר יהיה המפגש הראשי.`)) {
+            try {
+                const [masterId, ...subIds] = selectedForMerge;
+                await mergeSessions(masterId, subIds);
+                setIsMergeMode(false);
+                setSelectedForMerge([]);
+                fetchPatientData();
+            } catch (err) {
+                console.error("Error merging sessions:", err);
+                alert("שגיאה במיזוג המפגשים");
             }
         }
     };
@@ -223,7 +299,7 @@ export default function PatientDetail() {
                 </Link>
                 <div className="flex gap-2 md:gap-3">
                     <Link
-                        href={`/invoice-proforma?customer=${encodeURIComponent(`${patient.first_name} ${patient.last_name}`)}`}
+                        href={`/invoice-proforma?customer=${encodeURIComponent(patient.affiliation || `${patient.first_name} ${patient.last_name}`)}`}
                         className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-container)] text-[var(--primary)] rounded-2xl hover:bg-[var(--primary)] hover:text-white transition-all font-bold text-sm shadow-sm"
                         title="יצירת חשבונית עסקה"
                     >
@@ -261,6 +337,12 @@ export default function PatientDetail() {
                             <span className="hidden xs:inline opacity-30">•</span>
                             <span>הצטרפות: {new Date(patient.created_at).toLocaleDateString('he-IL')}</span>
                         </div>
+                        {patient.affiliation && (
+                            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-container)]/30 text-[var(--accent)] rounded-lg text-sm font-bold border border-[var(--accent-container)]">
+                                <Sparkles size={14} />
+                                <span>שיוך: {patient.affiliation}</span>
+                            </div>
+                        )}
                         <p className="mt-6 text-[var(--text-secondary)] text-base md:text-lg leading-relaxed max-w-2xl font-medium">
                             {patient.notes || "אין הערות קליניות רשומות למטופל זה."}
                         </p>
@@ -288,48 +370,221 @@ export default function PatientDetail() {
                 </div>
 
                 <section>
-                    <h2 className="text-xl font-black mb-8 flex items-center gap-3 text-[var(--text-primary)]">
-                        <div className="w-10 h-10 bg-[var(--primary-container)] rounded-xl flex items-center justify-center text-[var(--primary)]">
-                            <FileText size={20} />
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-xl font-black flex items-center gap-3 text-[var(--text-primary)]">
+                            <div className="w-10 h-10 bg-[var(--primary-container)] rounded-xl flex items-center justify-center text-[var(--primary)]">
+                                <FileText size={20} />
+                            </div>
+                            היסטוריית מפגשים ({sessions.length})
+                        </h2>
+                        <div className="flex gap-2">
+                            {isMergeMode ? (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setIsMergeMode(false);
+                                            setSelectedForMerge([]);
+                                        }}
+                                        className="px-4 py-2 text-sm font-bold text-[var(--text-secondary)] hover:bg-slate-100 rounded-xl transition-all"
+                                    >
+                                        ביטול
+                                    </button>
+                                    <button
+                                        onClick={handleMergeSessions}
+                                        disabled={selectedForMerge.length < 2}
+                                        className="px-4 py-2 text-sm font-bold bg-[var(--primary)] text-white rounded-xl shadow-md disabled:opacity-50 transition-all"
+                                    >
+                                        בצע מיזוג ({selectedForMerge.length})
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => setIsMergeMode(true)}
+                                    className="px-4 py-2 text-sm font-bold text-[var(--primary)] bg-[var(--primary-container)]/50 rounded-xl hover:bg-[var(--primary-container)] transition-all"
+                                >
+                                    מיזוג מפגשים
+                                </button>
+                            )}
                         </div>
-                        היסטוריית מפגשים ({sessions.length})
-                    </h2>
+                    </div>
 
                     <div className="space-y-4">
-                        {sessions.map((session, i) => (
-                            <motion.div
-                                key={session.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                                onClick={() => setSelectedSession(session)}
-                                className="glass-card p-5 md:p-6 flex items-center justify-between cursor-pointer group relative overflow-hidden border-transparent hover:border-[var(--primary)]/20"
-                                whileHover={{ x: -4 }}
-                            >
-                                <div className="flex items-center gap-4 md:gap-6 overflow-hidden flex-1">
-                                    <div className="w-12 h-12 bg-[var(--primary-container)] rounded-2xl flex items-center justify-center text-[var(--primary)] flex-shrink-0 shadow-inner">
-                                        <Calendar size={20} />
-                                    </div>
-                                    <div className="flex-1 overflow-hidden">
-                                        <h3 className="font-black text-base md:text-lg text-[var(--text-primary)]">מפגש מיום {new Date(session.session_date).toLocaleDateString('he-IL')}</h3>
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
-                                            <p className="text-xs font-bold text-[var(--primary)] opacity-60 flex-shrink-0">
-                                                {new Date(session.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </p>
-                                            {session.summaries?.[0]?.summary_text && (
-                                                <p className="text-xs text-[var(--text-secondary)] font-medium truncate flex-1 md:max-w-md">
-                                                    {session.summaries[0].summary_text}
-                                                </p>
-                                            )}
+                        {sessions.map((session, i) => {
+                            const subSessions = allSessionsRaw.filter(s => s.parent_session_id === session.id);
+                            const isExpanded = expandedFolders.includes(session.id);
+
+                            return (
+                                <div key={session.id} className="flex flex-col gap-2">
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        onClick={() => {
+                                            if (isMergeMode) {
+                                                setSelectedForMerge(prev =>
+                                                    prev.includes(session.id)
+                                                        ? prev.filter(id => id !== session.id)
+                                                        : [...prev, session.id]
+                                                );
+                                            } else {
+                                                setSelectedSession(session);
+                                            }
+                                        }}
+                                        className={`glass-card p-5 md:p-6 flex items-center justify-between cursor-pointer group relative overflow-hidden transition-all ${
+                                            isMergeMode && selectedForMerge.includes(session.id)
+                                                ? 'border-[var(--primary)] bg-[var(--primary-container)]/20 ring-2 ring-[var(--primary)]/20'
+                                                : 'border-transparent hover:border-[var(--primary)]/20'
+                                        }`}
+                                        whileHover={!isMergeMode ? { x: -4 } : {}}
+                                    >
+                                        {isMergeMode && (
+                                            <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-all ${
+                                                selectedForMerge.includes(session.id)
+                                                    ? 'bg-[var(--primary)] border-[var(--primary)] text-white'
+                                                    : 'border-slate-300 bg-white'
+                                            }`}>
+                                                {selectedForMerge.includes(session.id) && <Check size={14} />}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-4 md:gap-6 overflow-hidden flex-1">
+                                            <div className="w-12 h-12 bg-[var(--primary-container)] rounded-2xl flex items-center justify-center text-[var(--primary)] flex-shrink-0 shadow-inner relative">
+                                                <Calendar size={20} />
+                                                {subSessions.length > 0 && (
+                                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[var(--accent)] text-white rounded-lg flex items-center justify-center shadow-sm border-2 border-white">
+                                                        <FileText size={10} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-black text-base md:text-lg text-[var(--text-primary)]">מפגש מיום</h3>
+                                                    <input
+                                                        type="date"
+                                                        value={new Date(session.session_date).toISOString().split('T')[0]}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => handleUpdateSessionDate(session.id, e.target.value)}
+                                                        className="bg-[var(--primary-container)] px-2 py-1 rounded-lg text-sm font-black text-[var(--primary)] focus:outline-none cursor-pointer border border-transparent hover:border-[var(--primary)]/20 transition-all"
+                                                    />
+                                                    {subSessions.length > 0 && (
+                                                        <div className="flex items-center gap-2 mr-2">
+                                                            <button
+                                                                onClick={(e) => toggleFolder(e, session.id)}
+                                                                className="px-2 py-1 bg-[var(--primary-container)]/50 hover:bg-[var(--primary-container)] rounded-lg transition-all text-[var(--primary)] text-xs font-bold flex items-center gap-1"
+                                                            >
+                                                                <Sparkles size={14} className={isExpanded ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                                                                <span>{isExpanded ? 'סגור' : `הצג ${subSessions.length} הקלטות`}</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm("האם לפרק את התיקייה? כל ההקלטות יחזרו להיות מפגשים נפרדים.")) {
+                                                                        try {
+                                                                            await supabase.from('sessions').update({ parent_session_id: null }).eq('parent_session_id', session.id);
+                                                                            fetchPatientData();
+                                                                        } catch (err) {
+                                                                            alert("שגיאה בפירוק התיקייה");
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="p-1 hover:bg-red-50 rounded-lg text-red-400 transition-colors"
+                                                                title="פרק תיקייה"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
+                                                    <p className="text-xs font-bold text-[var(--primary)] opacity-60 flex-shrink-0">
+                                                        בשעה {new Date(session.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                    {session.summaries?.[0]?.summary_text && (
+                                                        <p className="text-xs text-[var(--text-secondary)] font-medium truncate flex-1 md:max-w-md">
+                                                            {session.summaries[0].summary_text}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                        <div className="flex items-center gap-2 text-[var(--primary)] opacity-100 md:opacity-0 group-hover:opacity-100 transition-all transform translate-x-0 md:translate-x-4 md:group-hover:translate-x-0">
+                                            <span className="text-sm font-black hidden sm:inline">צפייה</span>
+                                            <ChevronLeft size={20} />
+                                        </div>
+                                    </motion.div>
+
+                                    {/* Expanded Sub-sessions */}
+                                    <AnimatePresence>
+                                        {isExpanded && subSessions.length > 0 && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden pr-12 space-y-2"
+                                            >
+                                                {subSessions.map((sub, subIdx) => (
+                                                    <div
+                                                        key={sub.id}
+                                                        className="glass-card p-4 flex items-center justify-between border-dashed border-[var(--primary)]/10 bg-white/40"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                                                                <Mic size={14} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-black text-slate-600">הקלטה {subIdx + 1}</p>
+                                                                <p className="text-[10px] text-slate-400">
+                                                                    {new Date(sub.session_date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 mx-4 overflow-hidden">
+                                                            {sub.summaries?.[0]?.summary_text ? (
+                                                                <p className="text-[10px] text-[var(--primary)] font-bold truncate">
+                                                                    סיכום: {sub.summaries[0].summary_text}
+                                                                </p>
+                                                            ) : sub.transcripts?.[0]?.raw_text && (
+                                                                <p className="text-[10px] text-slate-400 truncate italic">
+                                                                    תמלול: "{sub.transcripts[0].raw_text}"
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedSession(sub);
+                                                                }}
+                                                                className="p-2 hover:bg-[var(--primary-container)] rounded-lg text-[var(--primary)] transition-colors"
+                                                                title="צפייה"
+                                                            >
+                                                                <ChevronLeft size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm("האם להוציא הקלטה זו מהתיקייה? היא תחזור להיות מפגש נפרד.")) {
+                                                                        try {
+                                                                            await supabase.from('sessions').update({ parent_session_id: null }).eq('id', sub.id);
+                                                                            fetchPatientData();
+                                                                        } catch (err) {
+                                                                            alert("שגיאה בפירוק המיזוג");
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="p-2 hover:bg-red-50 rounded-lg text-red-400 transition-colors"
+                                                                title="הוצא מהתיקייה"
+                                                            >
+                                                                <X size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-                                <div className="flex items-center gap-2 text-[var(--primary)] opacity-100 md:opacity-0 group-hover:opacity-100 transition-all transform translate-x-0 md:translate-x-4 md:group-hover:translate-x-0">
-                                    <span className="text-sm font-black hidden sm:inline">צפייה</span>
-                                    <ChevronLeft size={20} />
-                                </div>
-                            </motion.div>
-                        ))}
+                            );
+                        })}
                         {sessions.length === 0 && (
                             <div className="py-20 text-center glass-card border-dashed border-2">
                                 <div className="w-16 h-16 bg-[var(--surface-variant)] rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--outline)]">
@@ -373,6 +628,16 @@ export default function PatientDetail() {
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
+                                            {!selectedSession.summaries?.[0]?.summary_brief && selectedSession.summaries?.[0]?.summary_text && (
+                                                <button
+                                                    onClick={() => handleGenerateBrief(selectedSession.id, selectedSession.summaries[0].summary_text)}
+                                                    className="flex items-center gap-2 px-3 py-1 bg-[var(--primary-container)] text-[var(--primary)] rounded-xl text-xs font-bold hover:bg-[var(--primary)] hover:text-white transition-all border border-[var(--primary)]/10"
+                                                    title="צור תמצית AI לסיכום זה"
+                                                >
+                                                    <Sparkles size={14} />
+                                                    צור תמצית
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => {
                                                     const text = selectedSession.summaries?.[0]?.summary_text || "";
@@ -410,7 +675,24 @@ export default function PatientDetail() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-[var(--background)]">
+                                    <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-[var(--background)] space-y-6">
+                                        {!isEditingSummary && selectedSession.summaries?.[0]?.summary_brief && (
+                                            <div className="bg-[var(--primary-container)]/50 p-5 rounded-2xl border border-[var(--primary)]/10 relative">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="bg-[var(--primary)] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-sm">תמצית AI</span>
+                                                    <button
+                                                        onClick={() => handleCopySummary(selectedSession.summaries[0].summary_brief)}
+                                                        className="text-[var(--primary)] hover:opacity-70 transition-opacity"
+                                                        title="העתק תמצית"
+                                                    >
+                                                        <Copy size={16} />
+                                                    </button>
+                                                </div>
+                                                <p className="text-base md:text-lg leading-relaxed text-[var(--text-primary)] font-bold italic">
+                                                    "{selectedSession.summaries[0].summary_brief}"
+                                                </p>
+                                            </div>
+                                        )}
                                         {isEditingSummary ? (
                                             <textarea
                                                 value={editedSummaryText}
@@ -469,6 +751,7 @@ export default function PatientDetail() {
                         onAdd={handleUpdatePatient}
                         initialData={patient}
                         title="עדכון פרטי מטופל"
+                        existingAffiliations={allAffiliations}
                     />
                 </section>
             </main>

@@ -45,14 +45,16 @@ export default function SessionWorkspace({ transcript, summary: initialSummary, 
                     <FileText size={18} />
                     <h3 className="font-bold text-base md:text-lg">תמליל גולמי (STT)</h3>
                 </div>
-                <div className="flex-1 bg-[var(--background)] rounded-2xl p-4 overflow-y-auto max-h-[250px] md:max-h-[500px] border border-[var(--surface-variant)] text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-secondary)]">
+                <div className="flex-1 bg-[var(--background)] rounded-2xl p-4 overflow-y-auto max-h-[250px] md:max-h-[500px] border border-[var(--surface-variant)] text-sm leading-relaxed text-[var(--text-secondary)]">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-40 gap-4">
                             <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
                             <p className="text-sm font-medium animate-pulse">מתמלל את ההקלטה...</p>
                         </div>
                     ) : (
-                        transcript || "כאן יופיע התמליל הגולמי לאחר ההקלטה..."
+                        <div className="whitespace-pre-wrap">
+                            {transcript || "כאן יופיע התמליל הגולמי לאחר ההקלטה..."}
+                        </div>
                     )}
                 </div>
             </motion.div>

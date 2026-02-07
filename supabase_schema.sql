@@ -22,6 +22,7 @@ CREATE TABLE sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id UUID REFERENCES therapists(id) ON DELETE CASCADE,
+  parent_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
   session_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   audio_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -41,6 +42,7 @@ CREATE TABLE summaries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
   summary_text TEXT NOT NULL,
+  summary_brief TEXT,
   model TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -82,3 +82,42 @@ export async function generateSummary(transcript: string): Promise<AIResponse> {
         return { text: '', error: "שגיאה ביצירת הסיכום. אנא וודאי שקוד ה-API תקין." };
     }
 }
+
+export async function generateBrief(summary: string): Promise<AIResponse> {
+    const systemPrompt = `אתה עוזר מקצועי למטפלת באומנות.
+תפקידך לקחת סיכום טיפול מפורט ולזקק אותו לתמצית קצרה וממוקדת של 3-4 משפטים בלבד.
+
+התמצית צריכה לכלול:
+1. מה היה לב המפגש (הנושא המרכזי או התהליך המשמעותי).
+2. כיוון להמשך (מה הנקודה החשובה למפגש הבא).
+
+סגנון כתיבה: מקצועי, ענייני, בגוף שלישי על המטופל.
+דוגמה למבנה: "במפגש היום המטופל התמקד ב... נצפתה התקדמות ב... להמשך נתמקד ב..."`;
+
+    try {
+        const response = await fetch(`${OPENROUTER_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://meytalog.vercel.app',
+                'X-Title': 'MeytaLog',
+            },
+            body: JSON.stringify({
+                model: 'google/gemini-2.0-flash-001',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: summary },
+                ],
+                temperature: 0.3,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message || 'תמצות נכשל');
+        return { text: data.choices[0].message.content };
+    } catch (error: any) {
+        console.error("Brief generation error:", error);
+        return { text: '', error: "שגיאה ביצירת התמצית." };
+    }
+}
