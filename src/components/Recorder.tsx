@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Mic, Square, Trash2, Check, RefreshCw, Edit3 } from "lucide-react";
+import { Mic, Square, Trash2, Check, RefreshCw, Edit3, UploadCloud } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface RecorderProps {
-    onSave: (audioBlob: Blob) => void;
+    onSave: (audioData: Blob | File) => void;
     onCancel: () => void;
 }
 
 export default function Recorder({ onSave, onCancel }: RecorderProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
-    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [audioBlob, setAudioBlob] = useState<Blob | File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,6 +61,13 @@ export default function Recorder({ onSave, onCancel }: RecorderProps) {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
+        }
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setAudioBlob(file);
         }
     };
 
@@ -117,13 +125,29 @@ export default function Recorder({ onSave, onCancel }: RecorderProps) {
 
             <div className="flex gap-4 w-full">
                 {!isRecording && !audioBlob && (
-                    <button
-                        onClick={startRecording}
-                        className="flex-1 primary-button flex items-center justify-center gap-2"
-                    >
-                        <Mic size={18} />
-                        התחילי הקלטה
-                    </button>
+                    <>
+                        <button
+                            onClick={startRecording}
+                            className="flex-1 primary-button flex items-center justify-center gap-2"
+                        >
+                            <Mic size={18} />
+                            התחילי הקלטה
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 border border-[var(--primary)] text-[var(--primary)] rounded-full py-3 hover:bg-[var(--primary-container)] transition-colors flex items-center justify-center gap-2"
+                        >
+                            <UploadCloud size={18} />
+                            העלאת קובץ
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="audio/*"
+                                className="hidden"
+                            />
+                        </button>
+                    </>
                 )}
 
                 {isRecording && (
@@ -143,7 +167,7 @@ export default function Recorder({ onSave, onCancel }: RecorderProps) {
                             className="flex-1 border border-[var(--surface-variant)] text-[var(--secondary)] rounded-full py-3 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                         >
                             <RefreshCw size={18} />
-                            הקלטה מחדש
+                            ביטול / מחיקה
                         </button>
                         <button
                             onClick={() => onSave(audioBlob)}

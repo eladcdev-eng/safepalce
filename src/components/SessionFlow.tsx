@@ -24,7 +24,7 @@ export default function SessionFlow({ patientId, onComplete, onCancel }: Session
     const [summaryBrief, setSummaryBrief] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleAudioSaved = async (blob: Blob) => {
+    const handleAudioSaved = async (blob: Blob | File) => {
         setStep('processing');
         setIsLoading(true);
 

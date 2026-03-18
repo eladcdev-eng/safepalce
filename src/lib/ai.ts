@@ -5,10 +5,11 @@ export interface AIResponse {
     error?: string;
 }
 
-export async function transcribeAudio(audioBlob: Blob): Promise<AIResponse> {
+export async function transcribeAudio(audioData: Blob | File): Promise<AIResponse> {
     try {
         const formData = new FormData();
-        formData.append('file', audioBlob, 'recording.wav');
+        const fileName = audioData instanceof File ? audioData.name : 'recording.wav';
+        formData.append('file', audioData, fileName);
         formData.append('model', 'whisper-1');
         formData.append('language', 'he');
 
