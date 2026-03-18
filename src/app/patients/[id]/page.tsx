@@ -99,7 +99,7 @@ export default function PatientDetail() {
             subscription.unsubscribe();
         };
     }, [id]);
-    //workssד
+    //workssדs
     const fetchPatientData = async () => {
         console.log("DEBUG: fetchPatientData started for id:", id);
         try {
@@ -431,19 +431,17 @@ export default function PatientDetail() {
                                                 setSelectedSession(session);
                                             }
                                         }}
-                                        className={`glass-card p-5 md:p-6 flex items-center justify-between cursor-pointer group relative overflow-hidden transition-all ${
-                                            isMergeMode && selectedForMerge.includes(session.id)
+                                        className={`glass-card p-5 md:p-6 flex items-center justify-between cursor-pointer group relative overflow-hidden transition-all ${isMergeMode && selectedForMerge.includes(session.id)
                                                 ? 'border-[var(--primary)] bg-[var(--primary-container)]/20 ring-2 ring-[var(--primary)]/20'
                                                 : 'border-transparent hover:border-[var(--primary)]/20'
-                                        }`}
+                                            }`}
                                         whileHover={!isMergeMode ? { x: -4 } : {}}
                                     >
                                         {isMergeMode && (
-                                            <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-all ${
-                                                selectedForMerge.includes(session.id)
+                                            <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-all ${selectedForMerge.includes(session.id)
                                                     ? 'bg-[var(--primary)] border-[var(--primary)] text-white'
                                                     : 'border-slate-300 bg-white'
-                                            }`}>
+                                                }`}>
                                                 {selectedForMerge.includes(session.id) && <Check size={14} />}
                                             </div>
                                         )}
@@ -713,7 +711,7 @@ export default function PatientDetail() {
 
                                                 {selectedSession.summaries?.[0]?.raw_transcript && (
                                                     <div className="mt-8 border-t border-[var(--surface-variant)] pt-8">
-                                                        <button 
+                                                        <button
                                                             onClick={() => setIsShowRawTranscript(!isShowRawTranscript)}
                                                             className="flex items-center gap-2 text-[var(--primary)] font-bold mb-4 hover:opacity-80 transition-all"
                                                         >
@@ -722,7 +720,7 @@ export default function PatientDetail() {
                                                             </div>
                                                             {isShowRawTranscript ? 'הסתר תמלול גלם' : 'הצג תמלול גלם'}
                                                         </button>
-                                                        
+
                                                         <AnimatePresence>
                                                             {isShowRawTranscript && (
                                                                 <motion.div
